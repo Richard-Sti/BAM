@@ -2,3 +2,5 @@
 *.pyc
 tutorials/halos.npy
 .DS_Store
+*-checkpoint.ipynb
+tutorials/smf.npy
