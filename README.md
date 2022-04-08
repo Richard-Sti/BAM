@@ -8,7 +8,7 @@ Collection of empirical models of the galaxy-halo connection. Primarily in based
 
 ## Installlation 
 ```bash
-pip install .
+pip install empiricalgalo
 ```
 
 

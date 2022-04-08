@@ -13,5 +13,22 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+# get version
+def _read_version():
+    with open("empiricalgalo/_version.py", "r") as fh:
+        vstr = fh.read().strip()
+    try:
+        vstr = vstr.split('=')[1].strip()[1:-1]
+    except IndexError:
+        raise RuntimeError("version string in empiricalgalo._verion.py not "
+                           "formatted correctly; it should be:\n"
+                           "__version__ = VERSION")
+    return vstr
+
+
+__version__ = _read_version()
+__author__ = "Richard Stiskalek"
+
 from .abundance_match import AbundanceMatch
 from .proxy import proxies
+

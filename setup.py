@@ -33,15 +33,16 @@ version = vstr.replace("'", "").replace('"', "")
 
 setup(
     name='empiricalgalo',
-    version=version',
+    version=version,
     description='Empirical models of the galaxy-halo connection',
+    long_description=long_description,
     url='https://github.com/Richard-Sti/empiricalgalo',
     author='Richard Stiskalek',
     author_email='richard.stiskalek@protonmail.com',
     license='GPL-3.0',
-    packages=find_packages()
+    packages=find_packages(),
     install_requires=["numpy>=1.17.0",
-                      "six>=1.10.0"
+                      "six>=1.10.0",
                       "AbundanceMatching>=0.3.0"],
     python_requires=">=3.6",
     classifiers=[
