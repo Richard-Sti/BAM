@@ -67,43 +67,30 @@ class AbundanceMatch:
 
     @property
     def boxsize(self):
-        """
-        Simulation box side :math:`L`, the volume is :math:`L^3`.
-        """
+        """Simulation box side :math:`L`, the volume is :math:`L^3`."""
         return self._boxsize
 
     @boxsize.setter
     def boxsize(self, boxsize):
-        """
-        Sets `boxsize` and ensures it is positive.
-        """
+        """Sets `boxsize` and ensures it is positive."""
         if boxsize <= 0:
-            raise ValueError("'boxsize' must be positive.")
+            raise ValueError("``boxsize`` must be positive.")
         self._boxsize = boxsize
 
     @property
     def scatter_mult(self):
         """
-        The scatter multiplicative factor.
+        The scatter multiplicative factor, e.g. 1 for mass and 2.5 for
+        magnitude.
         """
         return self._scatter_mult
 
     @scatter_mult.setter
     def scatter_mult(self, scatter_mult):
-        """
-        Sets `scatter_mult`.
-        """
+        """Sets `scatter_mult`, checks it is positive."""
         if scatter_mult <= 0:
-            raise ValueError("'scatter_mult' must positive.")
+            raise ValueError("``scatter_mult`` must positive.")
         self._scatter_mult = scatter_mult
-
-#    @halo_proxy.setter
-#    def halo_proxy(self, halo_proxy):
-#        """Sets the halo proxy."""
-#        if halo_proxy.name not in proxies.keys():
-#            raise ValueError("Unrecognised proxy '{}'. Supported proxies: {}"
-#                             .format(halo_proxy, [k for k in proxies.keys()]))
-#        self._halo_proxy = halo_proxy
 
     def deconvoluted_catalogs(self, theta, halos, nrepeats=20,
                               return_remainder=False):
