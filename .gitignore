@@ -1,1 +1,4 @@
 /test_*
+*.pyc
+tutorials/halos.npy
+.DS_Store
