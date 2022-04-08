@@ -6,3 +6,4 @@ tutorials/halos.npy
 tutorials/smf.npy
 *.whl
 empiricalgalo.egg-info/*
+build/*
