@@ -28,7 +28,7 @@ class AbundanceMatch:
 
     Parameters
     ----------
-    x : 1-dimensional array 
+    x : 1-dimensional array
         The galaxy proxy.
     phi : 1-dimensional array
         The abundance values at `x` in units of :math:`x^{-1} L^{-3}` where
@@ -102,7 +102,7 @@ class AbundanceMatch:
         theta : dict
             Halo proxy parameters. Must include parameters required by
             `halo_proxy` and can include `scatter`. If the scatter is not
-            specified it is set to 0. 
+            specified it is set to 0.
         halos : structured numpy.ndarray
             Halos array with named fields containing the required parameters
             to calculate or extract the halo proxy.
@@ -225,7 +225,7 @@ class AbundanceMatch:
 
         # Select halos that make the cut
         mask_cut = numpy.logical_and(cat_scatter > cut_range[0],
-                                      cat_scatter < cut_range[1])
+                                     cat_scatter < cut_range[1])
         catalog = cat_scatter[mask_cut]
         # Final mask denoting which halos made it
         mask = numpy.where(catalogs['mask_nans'])[0][mask_cut]
