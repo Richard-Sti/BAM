@@ -50,7 +50,7 @@ class AbundanceMatch:
 
     References
     ----------
-    .. [1] https://bitbucket.org/yymao/abundancematching/
+    .. [1] https://github.com/yymao/abundancematching
 
     """
     name = "AbundanceMatch"
