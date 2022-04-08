@@ -33,6 +33,8 @@ class AbundanceMatch:
     phi : 1-dimensional array
         The abundance values at `x` in units of :math:`x^{-1} L^{-3}` where
         :math:`L` is `boxsize` and :math:`x` is the galaxy proxy.
+    halo_proxy : :py:class:`empiricalgalo.proxy`
+        A halo proxy object.
     ext_range : tuple of length 2
         Range of `x` over which to perform AM. Values outside `x` are
         extrapolated. Recommended to be sufficiently wider than ``cut_range``
@@ -53,19 +55,20 @@ class AbundanceMatch:
     References
     ----------
     .. [1] https://github.com/yymao/abundancematching
-
     """
     name = "AbundanceMatch"
     _boxsize = None
     _scatter_mult = None
+    _halo_proxy = None
 
-    def __init__(self, x, phi, ext_range, boxsize, faint_end_first,
+    def __init__(self, x, phi, halo_proxy, ext_range, boxsize, faint_end_first,
                  scatter_mult, **kwargs):
         # Initialise the abundance function
         self.af = AbundanceFunction(x, phi, ext_range,
                                     faint_end_first=faint_end_first, **kwargs)
         self.boxsize = boxsize
         self.scatter_mult = scatter_mult
+        self.halo_proxy = halo_proxy
 
     @property
     def boxsize(self):
@@ -90,6 +93,19 @@ class AbundanceMatch:
         if scatter_mult <= 0:
             raise ValueError("``scatter_mult`` must positive.")
         self._scatter_mult = scatter_mult
+
+    @property
+    def halo_proxy(self):
+        """The halo proxy."""
+        return self._halo_proxy
+
+    @halo_proxy.setter
+    def halo_proxy(self, halo_proxy):
+        """Sets the halo proxy."""
+        if halo_proxy.name not in proxies.keys():
+            raise ValueError("Unrecognised proxy '{}'. Supported proxies: {}"
+                             .format(halo_proxy, [k for k in proxies.keys()]))
+        self._halo_proxy = halo_proxy
 
     def deconvoluted_catalogs(self, theta, halos, nrepeats=20,
                               return_remainder=False):
