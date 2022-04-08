@@ -20,10 +20,6 @@ from six import add_metaclass
 
 import numpy
 
-from astropy import constants as const, units as u
-from astropy.cosmology import FlatLambdaCDM
-from halotools import empirical_models
-
 
 @add_metaclass(ABCMeta)
 class BaseProxy(object):
