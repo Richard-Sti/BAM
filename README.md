@@ -1,21 +1,16 @@
-# ClusterSHAM - Clustering-calibrated subhalo abundance matching models
+# empiricalgalo: Empirical models of the galaxy-halo connection
 
-ClusterSHAM is a collection of tools to explore the parameter space of subhalo abundance matching (AM) models.
+Collection of empirical models of the galaxy-halo connection. Primarily in based in Python and Julia.
 
-## Generating galaxy mocks
-
-A deconvoluted and zero scatter mock galaxy catalogs are calculated via `ClusterSHAM.mocks.AbundanceMatch.deconvoluted_catalogs`. Scatter can be added using `ClusterSHAM.mocks.AbundanceMatch.add_scatter`. To generate `N` independent mocks it is sufficient to use the same pair of deconvoluted and zero scatter mock galaxy catalogs.
-
-`ClusterSHAM.mocks.AbundanceMatch` requires a halo proxy object. Currently supported proxies can be found [here](https://github.com/Richard-Sti/ClusterSHAM/blob/master/clustersham/mocks/proxy.py).
-
-Based on https://github.com/yymao/abundancematching.
+## Models
+1. Subhalo abundance matching (SHAM) based on Yao-Yuan Mao's implementation [implementation](https://github.com/yymao/abundancematching) with Peter Behroozi's fiducial deconvolution implementation based on the Richardson-Lucy algorithm. Assumes a constant (log)-normal scatter in the galaxy proxy conditioned on the halo proxy.
 
 
-## 2-point correlation function in mocks
 
-Can be calculated via `ClusterSHAM.mocks.Correlator.mock_wp`, for the jackknife covariance matrix see `ClusterSHAM.mocks.Correlator.mock_jackknife_wp`.
 
-Based on https://github.com/manodeep/Corrfunc.
+## TO-DO
+- [ ] Add minimal working examples.
+
 
 
 ## License
