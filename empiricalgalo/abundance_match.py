@@ -28,15 +28,16 @@ class AbundanceMatch:
 
     Parameters
     ----------
-    x : numpy.ndarray (1D)
+    x : 1-dimensional array 
         The galaxy proxy.
-    phi : numpy.ndarray (1D)
+    phi : 1-dimensional array
         The abundance values at `x` in units of :math:`x^{-1} L^{-3}` where
         :math:`L` is `boxsize` and :math:`x` is the galaxy proxy.
-    ext_range : len-2 tuple
+    ext_range : tuple of length 2
         Range of `x` over which to perform AM. Values outside `x` are
-        extrapolated. For more information see
-        `AbundanceMatching.AbundanceFunction`.
+        extrapolated. Recommended to be sufficiently wider than ``cut_range``
+        in ``self.add_scatter``. For more information see
+        py:class:`AbundanceMatching.AbundanceFunction`.
     boxsize : int
         Length of a side of the cubical simulation box.
     faint_end_first : bool
@@ -46,7 +47,8 @@ class AbundanceMatch:
         A scatter multiplicative factor. Typically 1 for stellar mass and
         2.5 for magnitudes.
     **kwargs :
-        Optional arguments passed into `AbundanceMatching.AbundanceFunction`.
+        Optional arguments passed into
+        py:class:`AbundanceMatching.AbundanceFunction`.
 
     References
     ----------
@@ -72,22 +74,19 @@ class AbundanceMatch:
 
     @boxsize.setter
     def boxsize(self, boxsize):
-        """Sets `boxsize` and ensures it is positive."""
+        """Set `boxsize` and ensures it is positive."""
         if boxsize <= 0:
             raise ValueError("``boxsize`` must be positive.")
         self._boxsize = boxsize
 
     @property
     def scatter_mult(self):
-        """
-        The scatter multiplicative factor, e.g. 1 for mass and 2.5 for
-        magnitude.
-        """
+        """The scatter multiplicative factor."""
         return self._scatter_mult
 
     @scatter_mult.setter
     def scatter_mult(self, scatter_mult):
-        """Sets `scatter_mult`, checks it is positive."""
+        """Set `scatter_mult`, checks it is positive."""
         if scatter_mult <= 0:
             raise ValueError("``scatter_mult`` must positive.")
         self._scatter_mult = scatter_mult
@@ -95,38 +94,40 @@ class AbundanceMatch:
     def deconvoluted_catalogs(self, theta, halos, nrepeats=20,
                               return_remainder=False):
         """
-        Returns a catalog with no scatter and a deconvoluted scatter. To
-        calculate catalogs with scatter see `self.add_scatter`.
+        Calculate a deconvoluted catalog, to calculate catalogs with scatter
+        will add Gaussian scatter to it in ``self.add_scatter``.
 
         Parameters
         ----------
         theta : dict
             Halo proxy parameters. Must include parameters required by
-            `halo_proxy` and can include `scatter`.
+            `halo_proxy` and can include `scatter`. If the scatter is not
+            specified it is set to 0. 
         halos : structured numpy.ndarray
             Halos array with named fields containing the required parameters
-            to calculate the halo proxy.
+            to calculate or extract the halo proxy.
         n_repeats : int, optional
             Number of times to repeat fiducial deconvolute process. By
             default 20.
         return_remainder : bool, optional
-            Whether to return the remainder of the convolution.
+            Whether to return the remainder of the convolution. This should be
+            sufficiently close to 0.
 
         Returns
         -------
         result : dict
             Keys include:
-                cat0 : numpy.ndarray
+                cat0 : 1-dimensional array
                     A catalog without scatter.
-                cat_deconv : numpy.ndarray
+                cat_deconv : 1-dimensional array
                     A deconvoluted catalog. Scatter is not added yet.
                 scatter : float
-                    Gaussian scatter.
-                preselect_mask : numpy.ndarray
+                    Gaussian scatter to be added to the deconvoluted catalog.
+                preselect_mask : 1-dimensional array
                     A preselection mask.
-                mask_nans : numpy.ndarray
+                mask_nans : 1-dimensional array
                     A mask of which halos had a galaxy assigned.
-        remainder : numpy.ndarray
+        remainder : 1-dimensional array
             Optionally if `return_remainder` returns the deconvolution's
             remainder.
         """
@@ -135,11 +136,10 @@ class AbundanceMatch:
         if scatter is None:
             scatter = 0
         scatter *= self.scatter_mult
-
         # Calculate the AM proxy
         proxy = self.halo_proxy(halos, theta)
         res = {}
-        # Some proxies preselect halos
+        # Some proxies preselect halos that are to be abundance matched
         if len(proxy) == 2:
             plist, preselect_mask = proxy
             res.update({'preselect_mask': preselect_mask})
@@ -147,9 +147,9 @@ class AbundanceMatch:
             plist = proxy
 
         # Check all params have been used
-        if len(theta) != 0:
-            raise ValueError("Unrecognised parameters '{}'"
-                             .format(theta.keys()))
+        if len(theta) > 0:
+            raise ValueError("Unrecognised remaining parameters: ``{}``"
+                             .format(list(theta.keys())))
 
         nd_halos = calc_number_densities(plist, self.boxsize)
         # AbundanceFunction stores deconvoluted results by scatter, so no
@@ -164,11 +164,11 @@ class AbundanceMatch:
                                     return_remainder=False)
 
         # Catalog with 0 scatter
-        cat0 = self.af.match(nd_halos)
+        cat0 = self.af.match(nd_halos, scatter=0, do_add_scatter=True)
         # Deconvoluted catalog. Without adding the scatter
-        cat_deconv = self.af.match(nd_halos, scatter, False)
-
-        # Figure out which galaxies in the catalog are not NaNs
+        cat_deconv = self.af.match(nd_halos, scatter, do_add_scatter=False)
+        # Figure out which galaxies in the catalog are not NaNs nad have a
+        # galaxy matched
         mask_nans = ~numpy.isnan(cat_deconv)
 
         res.update({'cat0': cat0[mask_nans],
@@ -180,10 +180,11 @@ class AbundanceMatch:
             return res, remainder
         return res
 
-    def add_scatter(self, catalogs, cut_range, return_catalog=False):
+    def add_scatter(self, catalogs, cut_range, return_catalog=True):
         """
         Adds scatter to a previously deconvoluted catalog from
-        `self.deconvoluted_catalogs` and selects galaxies within `cut_range`.
+        ``self.deconvoluted_catalogs`` and selects galaxies within
+        ``cut_range``.
 
         Parameters
         ----------
@@ -195,21 +196,26 @@ class AbundanceMatch:
                     A deconvoluted catalog. Scatter is not added yet.
                 scatter : float
                     Gaussian scatter used to deconvolute this catalog.
-        cut_range : len-2 tuple
-            Faint and bright end cut offs.
+                mask_nans : 1-dimensional array
+                    A mask of which halos had a galaxy assigned.
+            Optionally if preselection:
+                preselect_mask : 1-dimensional array
+                    A preselection mask.
+        cut_range : tuple of length 2
+            Lower and upper cut offs on the abundance matched galaxies.
         return_catalog : bool, optional
             Whether to return the matched catalog. By default not returned.
 
         Returns
         -------
-        mask : numpy.ndarray
+        mask : 1-dimensional array
             Mask corresponding to the `halos` object passed into
-            `self.deconvoluted_catalogs`. Determines which halos were
-            assigned a within `cut_range`.
-        catalog : numpy.ndarray
-            Returned if `return_catalog`. Matched galaxies, typically either
-            log stellar mass or absolute magnitude.
+            `self.deconvoluted_catalogs`. Determines which halos were assigned
+            a galaxy with ``cut_range``.
+        catalog : 1-dimensional array
+            Returned if `return_catalog`. Matched galaxy proxies.
         """
+        # Check ordering
         if cut_range[0] > cut_range[1]:
             cut_range = cut_range[::-1]
 
@@ -223,7 +229,6 @@ class AbundanceMatch:
         catalog = cat_scatter[mask_cut]
         # Final mask denoting which halos made it
         mask = numpy.where(catalogs['mask_nans'])[0][mask_cut]
-
         # Apply preselection, if any
         try:
             mask = numpy.where(catalogs['preselect_mask'])[0][mask]
