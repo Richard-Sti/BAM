@@ -175,106 +175,6 @@ class PeakRedshiftProxy(BaseProxy):
         return proxy, mask
 
 
-class VirialVelocityProxy(BaseProxy):
-    r"""
-    Virial velocity abundance matching proxy defined as
-
-
-        .. math::
-            v_{\alpha} = v_0 * \left[ v_{\max} / v_0\right]^{\alpha},
-
-
-    where :math:`v_0` is the virial velocity evaluated at the peak halo mass
-    and :math:`v_{\max}` is the maximum circular velocity.
-
-    Parameters
-    ----------
-    cosmo : astropy.cosmology
-        Cosmology to calculate the the virial velocity at the peak halo mass.
-        Must match the simulation cosmology.
-
-    Note
-    ----
-    This proxy has not been optimised and requires precomputed 'vvir`.
-
-    """
-    name = 'vvir_proxy'
-
-    def __init__(self, cosmo):
-        self.halo_params = ['mpeak', 'mpeak_scale', 'Vmax@Mpeak']
-        self.cosmo = cosmo
-
-    def __call__(self, halos, theta):
-        """
-        Calculates the halo proxy.
-
-        Parameters
-        ----------
-        halos : structured numpy.ndarray
-            Array of halos with named fields.
-        theta : dict
-            A dictionary of proxy parameters.
-
-        Returns
-        -------
-        proxy : numpy.ndarray
-            Halo proxy.
-        """
-        alpha = theta.pop('alpha', None)
-        if alpha is None:
-            raise ValueError("'alpha' must be specified.")
-        self._check_halo_attributes(halos)
-        # Get vvir
-        try:
-            log_vvir = self._cache['log_vvir']
-        except KeyError:
-            log_vvir = numpy.log10(self.get_vvir(halos))
-            self._cache.update({'log_vvir': log_vvir})
-
-        try:
-            log_vratio = self._cache['log_vratio']
-        except KeyError:
-            log_vratio = numpy.log10(halos['Vmax@Mpeak']) - log_vvir
-            self._cache.update({'log_vratio': log_vratio})
-
-        proxy = numpy.copy(log_vvir)
-        proxy += alpha * log_vratio
-        return proxy
-
-    def get_vvir(self, halos):
-        """
-        Calculates the virial velocity at peak halo mass as defined in [1].
-
-            .. Note:
-                The critical density is assumed to be at present time.
-
-
-        Parameters
-        ----------
-        halos : structured numpy.ndarray
-            Halos array with names fields
-
-        References
-        ----------
-        .. [1] Lehmann, Benjamin V et al. "The Concentration Dependence of the
-               Galaxy-Halo Connection." arXiv:1510.05651
-
-        Returns
-        ----------
-        vvir : numpy.ndarray
-            Virial velocity at peak halo mass in km/s.
-        """
-        z_mpeak = (1.0 / halos['mpeak_scale']) - 1
-        mvir = halos['mpeak']
-        OmZ = self.cosmo.Om(z_mpeak)
-        Delta_vir = empirical_models.delta_vir(self.cosmo, z_mpeak) / OmZ
-
-        rho_crit = self.cosmo.critical_density0.to(u.kg/u.m**3)
-        vvir = ((4 * numpy.pi / 3 * const.G**3 * Delta_vir * rho_crit)**(1/6)
-                * (mvir * u.Msun.decompose())**(1/3)).to(u.km/u.s)
-        return vvir.value
-
-
 #
 # =============================================================================
 #
@@ -285,5 +185,4 @@ class VirialVelocityProxy(BaseProxy):
 
 
 proxies = {VirialMassProxy.name: VirialMassProxy,
-           VirialVelocityProxy.name: VirialVelocityProxy,
            PeakRedshiftProxy.name: PeakRedshiftProxy}
