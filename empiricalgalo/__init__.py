@@ -14,5 +14,5 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from .abundance_match import AbundanceMatch
-from .proxy import (VirialMassProxy, VirialVelocityProxy, PeakRedshiftProxy,
-                    proxies)
+from .proxy import proxies
+
