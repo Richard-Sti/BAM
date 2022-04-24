@@ -198,7 +198,7 @@ class EnsembleGaussianLossNN:
         self.models = [GaussianLossNN.from_checkpoint(path, optimizer)
                        for path in checkpoint_dirs]
 
-    def predict_stats(self, X, y=None):
+    def predict_stats(self, X, y=None, dscore=0.1, median_tol=0.01):
         """
         Predict the mean and standard deviation for features `X`.
 
@@ -231,12 +231,37 @@ class EnsembleGaussianLossNN:
             stds.append(pars["std"])
 
         if y is not None:
-            raise NotImplementedError("Outlier detection not implemented yet.")
+            scores = numpy.asarray([r2_score(mean, y) for mean in means])
+
+            selected_models = numpy.ones(scores.size, dtype=bool)
+            prev_median = None
+            while True:
+                median = numpy.median(scores[selected_models])
+                lower = median - dscore
+
+                selected_models[scores < lower] = False
+                # Continue to the next iteration if first iteration
+                if prev_median is None:
+                    continue
+                # Check whether hit the stopping condition
+                if numpy.abs(median / prev_median - 1) < median_tol:
+                    break
+                else:
+                    prev_median = median
+            # Select the means and stds from models that survived
+            means = [mean for i, mean in enumerate(means) if selected_models[i]]
+            stds = [std for i, std in enumerate(stds) if selected_models[i]]
+            scores = scores[selected_models]
+        else:
+            scores = numpy.nan
+
 
         means = numpy.vstack(means)
         stds = numpy.vstack(means)
 
-        return {"means": means, "stds": stds}
+        return {"means": means,
+                "stds": stds,
+                "scores": scores}
 
     def stacked_ensemble_stats(self, stats=None, X=None, y=None):
         are_both_none = stats is None and X is None
