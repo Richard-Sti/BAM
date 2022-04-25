@@ -35,11 +35,17 @@ def parse_data(data, features, target, log_labels, test_feature=None):
         List of labels that are to be log-transformed. If a feature or target
         are in this list returns their logarithm.
     test_feature : str, optional
-        TODO
+        Test feature.
 
     Returns
     -------
-    TODO
+    X : n-dimensional array
+        Features array of shape (`Nsamples`, `Nfeatures`).
+    y : 1-dimensional array
+        Target array of shape (`Nsamples`, ).
+    z : 1-dimensional array
+        Test feature array of shape (`Nsamples`, ). Returned only if
+        `test_feature` is not `None`.
     """
 
     X = numpy.array([numpy.log10(data[p]) if p in log_labels else data[p]
@@ -57,7 +63,7 @@ def parse_data(data, features, target, log_labels, test_feature=None):
     return X, y, z
 
 
-def incremental_importance(data, features, target, grid, log_labels=None,
+def incremental_importance(data, features, target, model, log_labels=None,
                            test_size=0.2, verbose=True, seed=42):
     """
     List features by their test set score in order that maximises the score
@@ -71,8 +77,8 @@ def incremental_importance(data, features, target, grid, log_labels=None,
         List of feature labels.
     target : str
         Target label.
-    grid :  TODO
-
+    model :  sklearn model
+        Sklearn model that with `fit` and `score` methods.
     log_labels : list of str, optional
         List of labels that are log-transformed. By default `None`.
     test_size : float, optional
@@ -82,9 +88,18 @@ def incremental_importance(data, features, target, grid, log_labels=None,
         Verbosity flag, by default `True`.
     seed : int, optional
         Random seed for reproducibility.
+
     Returns
     -------
-    TODO
+    out : dict
+        Dictionary with items:
+            ordered_features : list of str
+                List of cumulative features.
+            scores : 1-dimensional array
+                Cumulative maximised scores.
+            correlations : 1-dimensional array
+                Correlation between the newly added feature that maximises
+                the score increment and a model trained without it.
     """
     # If only a string passed in convert to a list
     if isinstance(features, str):
@@ -120,11 +135,11 @@ def incremental_importance(data, features, target, grid, log_labels=None,
             Xtrain, Xtest, ytrain, ytest = train_test_split(
                 X, y, test_size=test_size, random_state=seed)
             # Fit the model
-            model = deepcopy(grid)
-            model.fit(Xtrain, ytrain)
+            current_model = deepcopy(model)
+            current_model.fit(Xtrain, ytrain)
             # Append the model score and the model
-            scores[i] = model.score(Xtest, ytest)
-            models[i] = model
+            scores[i] = current_model.score(Xtest, ytest)
+            models[i] = current_model
 
 
         k = numpy.argmax(scores)
