@@ -50,7 +50,7 @@ def parse_data(data, features, target, log_labels, test_feature=None):
         y = numpy.log10(y)
     if test_feature is None:
         return X, y
-    # Get the test_feature and check wehther to log it
+    # Get the test_feature and check whether to log it
     z = data[test_feature]
     if test_feature in log_labels:
         z = numpy.log10(z)
@@ -58,7 +58,7 @@ def parse_data(data, features, target, log_labels, test_feature=None):
 
 
 def incremental_importance(data, features, target, grid, log_labels=None,
-                           test_size=0.2, seed=42):
+                           test_size=0.2, verbose=True, seed=42):
     """
     List features by their test set score in order that maximises the score
     increments.
@@ -78,6 +78,8 @@ def incremental_importance(data, features, target, grid, log_labels=None,
     test_size : float, optional
         Fractional test size to evaluate the scores of fitted models. By
         default 0.2.
+    verbose : bool, optional
+        Verbosity flag, by default `True`.
     seed : int, optional
         Random seed for reproducibility.
     Returns
@@ -132,7 +134,7 @@ def incremental_importance(data, features, target, grid, log_labels=None,
         # the target. Otherwise calculate the residuals of the previous best
         # model with the newly added feature.
         if len(sel_feats) == 0:
-            X, y = parse_data(data, [best_feature], target)
+            X, y = parse_data(data, [best_feature], target, log_labels)
             correlations.append(spearmanr(X.reshape(-1,), y))
             previous_model = models[k]
         else:
@@ -149,6 +151,10 @@ def incremental_importance(data, features, target, grid, log_labels=None,
         # Append the best selected feature and its score
         sel_feats.append(best_feature)
         best_scores.append(scores[k])
+
+        if verbose:
+            print("Iteration {}. Found ordering: {}, remaining: {}"
+                  .format(len(sel_feats), sel_feats, features))
 
     return {"ordered_features": sel_feats,
             "scores": best_scores,
