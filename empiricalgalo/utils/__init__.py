@@ -14,4 +14,4 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from .scatter import (BinningAssignment, BivariateGaussianScatterPosterior)
-from .R2ordering import incremental_importance
+from .R2ordering import incremental_importance, parse_data
