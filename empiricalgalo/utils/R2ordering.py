@@ -27,7 +27,7 @@ def parse_data(data, features, target, log_labels, test_feature=None):
     ---------
     data : structured array
         Array containing the data to be extracted.
-    features : (list of) str
+    features : list of str
         List of feature labels to be extracted from `data`.
     target : str
         Target label.
@@ -47,6 +47,9 @@ def parse_data(data, features, target, log_labels, test_feature=None):
         Test feature array of shape (`Nsamples`, ). Returned only if
         `test_feature` is not `None`.
     """
+    if test_feature is not None & test_feature in features:
+        raise ValueError("`test_feature` {} already in `features`."
+                         .format(test_feature))
 
     X = numpy.array([numpy.log10(data[p]) if p in log_labels else data[p]
                      for p in features]).T
