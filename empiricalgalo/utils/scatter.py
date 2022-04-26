@@ -81,8 +81,8 @@ class BinningAssignment:
                 mask[(bins[i] < self.x) & (self.x <= bins[i+1])] = i
 
         self._dx = dx
-        self._Nbins = numpy.unique(self.bins_mask).size
         self._mask = mask
+        self._Nbins = numpy.unique(self._mask).size
 
     @property
     def Nbins(self):
@@ -169,9 +169,8 @@ class BivariateGaussianScatterPosterior:
 
     def log_likelihood(self, **kwargs):
         """The log likelihood."""
-        mu = kwargs.pop("mu")
-        std = kwargs.pop("std")
-        return numpy.sum(norm(loc=mu, scale=std).logpdf(self.bin_samples))
+        return numpy.sum(norm(loc=kwargs["mu"],
+                              scale=kwargs["std"]).logpdf(self.bin_samples))
 
     def __call__(self, **kwargs):
         """Calls the log likelihood and prior."""
@@ -181,7 +180,4 @@ class BivariateGaussianScatterPosterior:
         else:
             ll = self.log_likelihood(**kwargs)
         # Check if there are any remaining parameters.
-        if len(kwargs) > 0:
-            raise ValueError("Unrecognised parameterse `{}`"
-                             .format(kwargs.keys()))
         return ll, lp
