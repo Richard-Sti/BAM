@@ -138,6 +138,7 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
     Performs stratified split on the input data structured array and
     return X_train, X_test, y_train, y_test structured arrays, and train and
     test set weights.
+
     The stratified split is performed along the specified target axis.
     Parameters
     ----------
@@ -149,7 +150,7 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
     targets : (list of) str
         Target attributes.
     stratify_axis : str
-        Target (axis) along which to stratify.
+        Features/target along which to stratify.
     log_stratify : bool
         Whether to log-transform the target axis before performing the
         stratified split.
@@ -170,10 +171,11 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
         Weights are calculated by binning the data along the stratify axis
         (defined by the target), which depends on ``Nbins``.
         If input numpy.ndarray, then it must be one-dimensional and its size
-        must match the number of data points.
+        must match the number of data points. By default `None`.
     ax_percentile: len-2 tuple, optional
-        Percentile range to estimate the bins for stratified split.
-        By default (0.5, 99.5) %.
+        Percentile range to estimate the bins for stratified split. By default
+        (0.5, 99.5).
+
     Returns
     ------
     X_train : numpy.ndarray with named fields
@@ -185,11 +187,9 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
     y_test : numpy.ndarray with named fields
         Test target.
     train_weights : numpy.ndarray
-        Sample weights for the train set. Returns ``None`` if no weights
-        specified.
+        Sample weights for the train set.  If weights is `None` is not returned.
     test_weights : numpy.ndarray
-        Sample weights for the test set. Returns ``None`` if no weights
-        specified.
+        Sample weights for the test set. If weights is `None` is not returned.
     """
 
     # Check the features inputs
@@ -310,4 +310,8 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
         else:
             train_weights = target_weights[train_index]
             test_weights = target_weights[test_index]
-    return X_train, X_test, y_train, y_test, train_weights, test_weights
+
+    if weights is not None:
+        return X_train, X_test, y_train, y_test, train_weights, test_weights
+
+    return X_train, X_test, y_train, y_test
