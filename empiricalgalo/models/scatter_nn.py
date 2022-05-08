@@ -634,8 +634,10 @@ class SummaryEnsembleGaussianLossNN:
         mean_grad = numpy.mean(pred, axis=0)
 
         if bootstrap:
-            bootstrap_grad = numpy.std(pred, axis=0)
-            return numpy.stack([mean_grad, bootstrap_grad])
+            out = numpy.full((2, 2, *X.shape), numpy.nan)
+            out[:, 0, ...] = mean_grad
+            out[:, 1, ...] = numpy.std(pred, axis=0)
+            return out
 
         return mean_grad
 
