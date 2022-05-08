@@ -17,6 +17,7 @@ import numpy
 from copy import deepcopy
 from warnings import warn
 import os
+from glob import glob
 
 import tensorflow as tf
 from tensorflow.keras.layers import (Input, Normalization, Dense, Add)
@@ -464,110 +465,189 @@ def make_checkpoint_dirs(base_path, Nensemble):
     return cdirs
 
 
-
 class SummaryEnsembleGaussianLossNN:
     """
-    Make clear that this class is not for training (since we do that with MPI)
+    Lala
     """
 
-    def __init__(self, checkpoint_dirs, optimizer="adamax"):
-        if not isinstance(checkpoint_dirs, list):
-            raise TypeError("`checkpoint_dirs` must be a list.")
+    def __init__(self, base_checkpoint_dir, optimizer, verbose=True):
+        cdirs = glob(os.path.join(base_checkpoint_dir, "ensemble_*"))
 
-        self.models = [GaussianLossNN.from_checkpoint(path, optimizer)
-                       for path in checkpoint_dirs]
+        if verbose:
+            print("Found {} models in `{}`."
+                  .format(len(cdirs), base_checkpoint_dir))
+        self.models = [GaussianLossNN.from_checkpoint(cdir, optimizer)
+                       for cdir in cdirs]
 
+    def score_R2mean(self, X, y):
+        r"""
+        Calculate for each model the :math:`R^2` score of mean predictions
+        defined as
 
-    def reject_bad_models(self):
-        scores = numpy.asarray([r2_score(mean, y) for mean in means])
+        .. math::
+            R^2 = 1 - \frac{\sum_n (\mu_n - y_n)^2}{\sum_n (\mu_n - \hat{y})^2}
 
-        selected_models = numpy.ones(scores.size, dtype=bool)
-        prev_median = None
-        while True:
-            median = numpy.median(scores[selected_models])
-            lower = median - dscore
-
-            selected_models[scores < lower] = False
-            # Continue to the next iteration if first iteration
-            if prev_median is None:
-                continue
-            # Check whether hit the stopping condition
-            if numpy.abs(median / prev_median - 1) < median_tol:
-                break
-            else:
-                prev_median = median
-        # Select the means and stds from models that survived
-        means = [mean for i, mean in enumerate(means) if selected_models[i]]
-        stds = [std for i, std in enumerate(stds) if selected_models[i]]
-        scores = scores[selected_models]
-
-    def predict_stats(self, X, y=None, dscore=0.1, median_tol=0.01):
-        """
-        Predict the mean and standard deviation for features `X`.
+        where :math:`\mu_n, y_n` are the predicted mean and true values,
+        respectively, of the :math:`n`th sample. :math:`\hat{y}` is the average
+        of the true values.
 
         Arguments
         ---------
-        X : n-dimensional array
-            Feature array of shape (`Nsamples`, `Nfeatures`).
-        y : 1-array, optional
-            Target array corresponding to `X` of shape (`Nsamples`, ).
-            Optional, if supplied used to reject models with outlier values
-            of R^2 that did not converge.
+        X: 2-dimensional array
+            Feature array.
+        y: 1-dimensional array
+            Target array.
 
         Returns
         -------
-        out : dict with keys
-            means : array
-                Mean predictions of each sample from each model, shape
-                is (`Nmodels`, `Nsamples`).
-            stds : array
-                Standard deviation of each sample from each model, shape
-                is (`Nmodels`, `Nsamples`).
+        R2: list of floats
+            The R2 scores.
         """
-        means = []
-        stds = []
+        return [model.score_R2mean(X, y) for model in self.models]
 
-        for model in self.models:
-            pars = model.predict_stats(X)
+    def score_reduced_chi2(self, X, y):
+        r"""
+        Calculate for each model the reduced :math:`\chi^2` score defined as
 
-            means.append(pars["mean"])
-            stds.append(pars["std"])
+        .. math::
+            \chi^2 = \frac{1}{N - 2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
 
-        if y is not None:
-            pass
+        where :math:`\mu_n, \sigma_n, y_n` are the :math:`n`th predicted mean
+        value, predicted uncertainty and true value, respectively. Lastly,
+        :math:`N` is the number of samples.
 
+        Values of :math:`\chi^2 \gg 1` indicates that the error variance is
+        underestimated and :math:`\chi^2 < 1` indicates the error variance is
+        overestimated.
 
-        means = numpy.vstack(means)
-        stds = numpy.vstack(means)
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        y: 1-dimensional array
+            Target array.
 
-        return {"means": means,
-                "stds": stds,
-                "scores": scores}
+        Returns
+        -------
+        chi2 : float
+            The reduced :math:`\chi^2` value.
+        """
+        return [model.score_reduced_chi2(X, y) for model in self.models]
 
-    def stacked_ensemble_stats(self, stats=None, X=None, y=None):
-        are_both_none = stats is None and X is None
-        are_both_given = stats is not None and X is not None
-        if are_both_none or are_both_given:
-            raise ValueError("Must supply either `stats` of `X`")
+#    def reject_bad_models(self):
+#        scores = numpy.asarray([r2_score(mean, y) for mean in means])
+#
+#        selected_models = numpy.ones(scores.size, dtype=bool)
+#        prev_median = None
+#        while True:
+#            median = numpy.median(scores[selected_models])
+#            lower = median - dscore
+#
+#            selected_models[scores < lower] = False
+#            # Continue to the next iteration if first iteration
+#            if prev_median is None:
+#                continue
+#            # Check whether hit the stopping condition
+#            if numpy.abs(median / prev_median - 1) < median_tol:
+#                break
+#            else:
+#                prev_median = median
+#        # Select the means and stds from models that survived
+#        means = [mean for i, mean in enumerate(means) if selected_models[i]]
+#        stds = [std for i, std in enumerate(stds) if selected_models[i]]
+#        scores = scores[selected_models]
 
-        if stats is None:
-            stats = self.predict_stats(X)
-        # The ensemble mean is the mean of the models
-        mean = numpy.mean(stats["means"], axis=0)
-        # The ensemble std is the sqrt of the averaged variance with correction
-        std = numpy.mean(stats["stds"]**2
-                         + (stats["means"] - mean)**2, axis=0)**0.5
-
-        mean_deviation = numpy.std(stats["means"], axis=0)
-        std_deviation = numpy.std(stats["stds"], axis=0)
-
-        if y is not None:
-            in1sigma = numpy.sum(numpy.abs(mean - y) < std) / mean.size
-        else:
-            in1sigma = numpy.nan
-
-        return {"mean": mean,
-                "std": std,
-                "mean_deviation": mean_deviation,
-                "std_deviation": std_deviation,
-                "in1sigma": in1sigma}
+#    def predict(self, X, full=False):
+#          """
+#          Predict the mean or the distribution if `full`.
+#
+#          Arguments
+#          ---------
+#          X: 2-dimensional array
+#              Feature array.
+#          full: bool, optional
+#              Whether to return the probability distribution instead. By default
+#              `False` and returns only the mean.
+#
+#          Returns
+#          -------
+#          out: 1-dimensional array or tensor of distributions
+#              Predictions. If `full` returns distributions, otherwise returns the
+#              mean prediction.
+#          """
+#          N = X.shape[n]
+#          yhat = self.model({"linear_input": X, "deep_input": X})
+#          if full:
+#              return yhat
+#          return numpy.asarray(yhat.mean()).reshape(-1,)
+#
+#    def predict_stats(self, X, y=None, dscore=0.1, median_tol=0.01):
+#        """
+#        Predict the mean and standard deviation for features `X`.
+#
+#        Arguments
+#        ---------
+#        X : n-dimensional array
+#            Feature array of shape (`Nsamples`, `Nfeatures`).
+#        y : 1-array, optional
+#            Target array corresponding to `X` of shape (`Nsamples`, ).
+#            Optional, if supplied used to reject models with outlier values
+#            of R^2 that did not converge.
+#
+#        Returns
+#        -------
+#        out : dict with keys
+#            means : array
+#                Mean predictions of each sample from each model, shape
+#                is (`Nmodels`, `Nsamples`).
+#            stds : array
+#                Standard deviation of each sample from each model, shape
+#                is (`Nmodels`, `Nsamples`).
+#        """
+#        means = []
+#        stds = []
+#
+#        for model in self.models:
+#            pars = model.predict_stats(X)
+#
+#            means.append(pars["mean"])
+#            stds.append(pars["std"])
+#
+#        if y is not None:
+#            pass
+#
+#
+#        means = numpy.vstack(means)
+#        stds = numpy.vstack(means)
+#
+#        return {"means": means,
+#                "stds": stds,
+#                "scores": scores}
+#
+#    def stacked_ensemble_stats(self, stats=None, X=None, y=None):
+#        are_both_none = stats is None and X is None
+#        are_both_given = stats is not None and X is not None
+#        if are_both_none or are_both_given:
+#            raise ValueError("Must supply either `stats` of `X`")
+#
+#        if stats is None:
+#            stats = self.predict_stats(X)
+#        # The ensemble mean is the mean of the models
+#        mean = numpy.mean(stats["means"], axis=0)
+#        # The ensemble std is the sqrt of the averaged variance with correction
+#        std = numpy.mean(stats["stds"]**2
+#                         + (stats["means"] - mean)**2, axis=0)**0.5
+#
+#        mean_deviation = numpy.std(stats["means"], axis=0)
+#        std_deviation = numpy.std(stats["stds"], axis=0)
+#
+#        if y is not None:
+#            in1sigma = numpy.sum(numpy.abs(mean - y) < std) / mean.size
+#        else:
+#            in1sigma = numpy.nan
+#
+#        return {"mean": mean,
+#                "std": std,
+#                "mean_deviation": mean_deviation,
+#                "std_deviation": std_deviation,
+#                "in1sigma": in1sigma}
