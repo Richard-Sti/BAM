@@ -562,36 +562,49 @@ class SummaryEnsembleGaussianLossNN:
             corresponding bootstraps in the last axis. The shape is
             (`Nsamples`, 2, 2).
         """
-        # If not returning the std
-        if not full:
-            pred = self.predict(X, full)
-            # Average the mean over the models
-            mus = numpy.mean(pred, axis=0)
-            # Bootstrap the means from models
-            if bootstrap:
-                return numpy.stack([mus, numpy.std(pred, axis=0)]).T
-            else:
-                return mus
-
-        # Otherwise we have to deal with the std as well
-        pred = self.predict(X, full)
+        pred = self.predict(X, True)
 
         mus = numpy.mean(pred[..., 0], axis=0)
         stds = numpy.mean(
             pred[..., 1]**2 + (pred[..., 0] - mus)**2, axis=0)**0.5
 
-        # If no bootstrapping wrap in array and return
-        if not bootstrap:
-            return numpy.stack([mus, stds]).T
-
         mus_bootstrap = numpy.std(pred[..., 0], axis=0)
-        stds_bootsrap = numpy.mean((pred[..., 1] - stds)**2)
+        stds_bootstrap = numpy.mean((pred[..., 1] - stds)**2, axis=0)**0.5
 
         out = numpy.full((mus.size, 2, 2), numpy.nan)
-        out[:, 0, 0] = mus
-        out[:, 0, 1] = mus_bootstrap
-        out[:, 1, 0] = stds
-        out[:, 1, 1] = stds_bootsrap
+        out[:, 0, :] = numpy.vstack([mus, mus_bootstrap]).T
+        out[:, 1, :] = numpy.vstack([stds, stds_bootstrap]).T
+
+        if full and bootstrap:
+            return out
+        elif full and not bootstrap:
+            return out[:, :, 0]
+        elif not full and bootstrap:
+            return out[:, 0, :]
+        else:
+            return out[:, 0, 0]
+
+    def predict_gradient(self, X):
+        """
+        Predict gradient of the predicted mean and standard deviation with
+        respect to the input features.
+
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+
+        Returns
+        -------
+        out: 4-dimensional array
+            Array of gradients of shape (`Nensemble`, 2, `Nsamples`,
+            `Nfeatures`). The second axis represents the mean and standard
+            deviation, respectively.
+        """
+        out = numpy.full((self.Nensemble, 2, *X.shape), numpy.nan)
+        for i, model in enumerate(self.models):
+            out[i, ...] = model.predict_gradient(X)
         return out
 
     def score_R2mean(self, X, y, full=True):
