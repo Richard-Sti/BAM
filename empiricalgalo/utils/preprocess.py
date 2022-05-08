@@ -13,7 +13,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""A union pipeline to combine multiple preprocessing pipelines."""
+"""Data frame selector for ML training and split routines."""
 
 import numpy
 from scipy.interpolate import interp1d
@@ -140,6 +140,7 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
     test set weights.
 
     The stratified split is performed along the specified target axis.
+
     Parameters
     ----------
     data : numpy.ndarray with named fields
@@ -315,3 +316,28 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
         return X_train, X_test, y_train, y_test, train_weights, test_weights
 
     return X_train, X_test, y_train, y_test
+
+
+def apply_preprocess(train, test, pipeline):
+    """
+    Fit a pipeline on training data and then transform both train and test.
+
+    Arguments
+    ---------
+    train: structured array
+        Training data.
+    test: structured array
+        Test data.
+    pipeline: :py:class:`sklearn.pipeline.Pipeline`
+        Preprocessing pipeline.
+
+    Returns
+    -------
+    train: structured array
+        Transformed training data.
+    test: structured array
+        Tranformed test data.
+    """
+    train = pipeline.fit_transform(train)
+    test = pipeline.transform(test)
+    return train, test
