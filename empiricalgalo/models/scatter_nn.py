@@ -357,7 +357,7 @@ class GaussianLossNN:
         return network
 
     @classmethod
-    def fit_directly(cls, Xtrain, ytrain, batch_size, checkpoint_dir,
+    def fit_directly(cls, Xtrain, ytrain, batch_size, checkpoint_dir, seed,
                      model_kwargs={}, optimizer="adamax", patience=50,
                      epochs=500, validation_size=0.2):
         """
@@ -374,6 +374,8 @@ class GaussianLossNN:
         checkpoint_dir: str
             Path to the directory with the checkpoint files `params.p` and
             `cp.ckpt`.
+        seed: int, optional
+            Random seed for setting the initial weights.
         model_kwargs: dict
             Kwargs passed into :py:class:`GaussianLossNN`, except `Ninputs` and
             `checkpoint_dir`.
@@ -400,9 +402,11 @@ class GaussianLossNN:
         if model_kwargs.pop("Ninputs", None) is not None:
             warn("`Ninputs` inferred implicitly from `Xtrain`. Ignoring the value "
                  "in `model_kwargs`.")
-        if model_kwargs.pop("checkpoint_dir", None) is not None:
-            warn("`checkpoint_dir` must be specified outside `model_kwargs`. "
-                 "Ignoring the value in `model_kwargs`.")
+
+        for par in ["checkpoint_dir", "seed"]:
+            if model_kwargs.pop(par, None) is not None:
+                warn("`{}` must be specified outside `model_kwargs`. "
+                     "Ignoring the value in `model_kwargs`.".format(par))
 
         # Initiliase the model
         Ninputs = Xtrain.shape[1]
@@ -447,6 +451,32 @@ def make_checkpoint_dirs(base_path, Nensemble):
             os.mkdir(cdir)
         cdirs[i] = cdir
     return cdirs
+
+
+def get_random_seeds(N, seed):
+    """
+    Get a set of random seeds (unique integers).
+
+    Arguments
+    ---------
+    N: int
+        Number of seeds to get.
+    seed: int
+        Initial random seed.
+
+    Returns
+    -------
+    seeds: list of int
+        List of unique seeds.
+    """
+    rng = numpy.random.default_rng(seed)
+    seeds = []
+    while len(seeds) < N:
+        rvs = rng.integers(0, 2**32)
+        if rvs not in seeds:
+            seeds.append(rvs)
+
+    return seeds
 
 
 class SummaryEnsembleGaussianLossNN:
