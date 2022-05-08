@@ -15,3 +15,4 @@
 
 from .scatter import (BinningAssignment, BivariateGaussianScatterPosterior)
 from .R2ordering import incremental_importance, parse_data
+from .preprocess import DataFrameSelector, stratify_split
