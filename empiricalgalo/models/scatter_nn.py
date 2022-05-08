@@ -14,6 +14,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import numpy
+from copy import deepcopy
+from warnings import warn
 import os
 
 import tensorflow as tf
@@ -22,6 +24,7 @@ import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 import neural_structured_learning as nsl
 from sklearn.metrics import r2_score
+
 import joblib
 
 
@@ -354,6 +357,34 @@ class GaussianLossNN:
                                   loss=network._hamiltonian_loss)
         checkpoint_path = os.path.join(checkpoint_dir, "cp.ckpt")
         network.adv_model.load_weights(checkpoint_path)
+        return network
+
+    @classmethod
+    def fit_directly(cls, Xtrain, ytrain, batch_size, checkpoint_dir,
+                     model_kwargs={}, optimizer="adamax", patience=50,
+                     epochs=500, validation_size=0.2):
+        """
+        Initialise the model and directly fit it.
+
+        TODO: add docs
+        """
+        # Deepcopy the kwargs
+        model_kwargs = deepcopy(model_kwargs)
+
+        # Do some input checking
+        if model_kwargs.pop("Ninputs", None) is not None:
+            warn("`Ninputs` inferred implicitly from `Xtrain`. Ignoring the value "
+                 "in `model_kwargs`.")
+        if model_kwargs.pop("checkpoint_dir", None) is not None:
+            warn("`checkpoint_dir` must be specified outside `model_kwargs`. "
+                 "Ignoring the value in `model_kwargs`.")
+
+        # Initiliase the model
+        Ninputs = Xtrain.shape[1]
+        network = cls(Ninputs, checkpoint_dir, **model_kwargs)
+        # Fit it
+        network.fit(Xtrain, ytrain, batch_size, optimizer, patience, epochs,
+                  validation_size)
         return network
 
 
