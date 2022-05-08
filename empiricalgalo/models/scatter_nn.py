@@ -44,21 +44,20 @@ class GaussianLossNN:
         Network weights initialiser, by default `LecunNormal`. Alternatively
         can be picked from Tensorflow's selection of initialisers.
     adv_multiplier : float, optinal
-        TODO
+        Multiplier to adversarial regularization loss. By default 0.2.
     adv_step : float, optional
-        TODO
+        Step size to find the adversarial sample. By default to 0.001.
     pgd_iters : int, optional
-        TODO
+        Nnumber of attack iterations for Projected Gradient Descent (PGD)
+        attack. Defaults to 3.
     seed : int, optional
         Random seed for setting the initial weights.
     """
-
     def __init__(self, Ninputs, checkpoint_dir, deep_layers=[16, 16, 16, 16, 8],
                  activation="selu", initializer="LecunNormal",
-                 adv_multiplier=0.5, adv_step=0.005, pgd_iters=3,
-                 seed=None):
+                 adv_multiplier=0.2, adv_step=0.001, pgd_iters=3, seed=None):
         # Initialise the model
-        self.model, self.adv_model = self.make_model(
+        self.model, self.adv_model = self._make_model(
             Ninputs, deep_layers, activation, initializer, adv_multiplier,
             adv_step, pgd_iters, seed)
 
@@ -72,12 +71,9 @@ class GaussianLossNN:
                         "adv_multiplier": adv_multiplier, "adv_step": adv_step,
                         "pgd_iters": pgd_iters, "seed": seed}
 
-
-    def make_model(self, Ninputs, deep_layers, activation, initializer,
+    def _make_model(self, Ninputs, deep_layers, activation, initializer,
                    adv_multiplier, adv_step, pgd_iters, seed):
-        """
-        Make the (adversarial) model.
-        """
+        """Make the (adversarial) model."""
         # Weights initialiser
         if initializer == "LecunNormal":
             inits = tf.keras.initializers.LecunNormal(seed)
@@ -117,68 +113,245 @@ class GaussianLossNN:
             multiplier=adv_multiplier, adv_step_size=adv_step,
             pgd_iterations=pgd_iters)
         adv_model = nsl.keras.AdversarialRegularization(
-            model, label_keys=["target"], adv_config=adv_config)
+            model, adv_config=adv_config)
 
         return model, adv_model
 
     @staticmethod
-    def hamiltonian_loss(x, dist):
+    def _hamiltonian_loss(x, dist):
         """The Hamiltonian (negative log likelihood) loss function."""
         return -dist.log_prob(x)
 
     def get_callbacks(self, patience):
+        """
+        Get the early stopping and checkpointing callbacks. Restores the best
+        weights.
+
+        Arguments
+        ---------
+        patience: int
+            The patience, if the loss minimum does not change over this many
+            epochs terminate the training.
+
+        Returns
+        -------
+        cbs: list of callbacks
+            The early stopping and model checkpoint callbacks.
+        """
         checkpoint_path = os.path.join(self.checkpoint_dir, "cp.ckpt")
         return [tf.keras.callbacks.EarlyStopping(
                     patience=patience,restore_best_weights=True),
                 tf.keras.callbacks.ModelCheckpoint(
                     filepath=checkpoint_path, save_weights_only=True, verbose=0)]
 
-
-    def train(self, Xtrain, ytrain, models, optimizer, patience, batch_size,
-              epochs, validation_size=0.2):
+    def fit(self, Xtrain, ytrain, batch_size, optimizer="adamax", patience=50,
+            epochs=500, validation_size=0.2):
         """
-        Train the NN.
+        Fit the NN with the given optimizer and save its training history and
+        weights into the checkpoint folder.
 
+        Arguments
+        ---------
+        Xtrain: 2-dimensional array
+            Feature array.
+        ytrain: 1-dimensional array
+            Target array.
+        batch_size: int
+            The batch size.
+        optimizer: keras optimizer, optional
+            Optimizer to train the network. By default `adamax` with default TF
+            parameters.
+        patience: int, optional
+            The patience, if the loss minimum does not change over this many
+            epochs terminate the training. By default 50.
+        epochs: int, optional
+            Number of epochs to train the network, by defualt 500.
+        validation_size: float, optional
+            Fractional validation size.
 
+        Returns
+        -------
+        None
         """
-        adv_model = models["adv_model"]
         # Compile the model
-        adv_model.compile(optimizer=optimizer, loss=self.hamiltonian_loss)
+        self.adv_model.compile(optimizer=optimizer, loss=self._hamiltonian_loss)
         # Data in a format to be given to the NN
         data = {"linear_input": Xtrain,
                 "deep_input": Xtrain,
-                "target": ytrain}
+                "label": ytrain}
 
-        callbacks = self.get_callbacks(self.checkpoint_dir, patience)
-        history = adv_model.fit(x=data, batch_size=batch_size, callbacks=callbacks,
-                                verbose=0, epochs=epochs,
-                                validation_split=validation_size)
+        callbacks = self.get_callbacks(patience)
+
+        history = self.adv_model.fit(
+            x=data, batch_size=batch_size, callbacks=callbacks, verbose=0,
+            epochs=epochs, validation_split=validation_size)
+
         # Save the history and the params for reproducibility
         joblib.dump(history.history,
                     os.path.join(self.checkpoint_dir, 'history.p'))
         joblib.dump(self._params, os.path.join(self.checkpoint_dir, 'params.p'))
 
-
     def predict(self, X, full=False):
+        """
+        Predict the mean or the distribution if `full`.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        full: bool, optional
+            Whether to return the probability distribution instead. By default
+            `False` and returns only the mean.
+
+        Returns
+        -------
+        out: 1-dimensional array or tensor of distributions
+            Predictions. If `full` returns distributions, otherwise returns the
+            mean prediction.
+        """
         yhat = self.model({"linear_input": X, "deep_input": X})
         if full:
             return yhat
-        return yhat.mean()
+        return numpy.asarray(yhat.mean()).reshape(-1,)
 
     def predict_stats(self, X):
-        yhat = self.predict(X, full=True)
-        return {"mean": numpy.asarray(yhat.mean()).reshape(-1,),
-                "std": numpy.asarray(yhat.stddev()).reshape(-1,)}
+        """
+        Predict the mean and standard deviations for samples `X`.
 
-    def score_mean(self, X, y):
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+
+        Returns
+        -------
+        stats: 2-dimensional array
+            Array of shape (`Nsamples`, 2). The first and second columns are
+            the mean and standard deviation, respectively.
+        """
+        yhat = self.predict(X, full=True)
+
+        mu = numpy.asarray(yhat.mean()).reshape(-1,)
+        std = numpy.asarray(yhat.stddev()).reshape(-1,)
+        return numpy.vstack([mu, std]).T
+
+    def score_R2mean(self, X, y):
+        r"""
+        Calculate the :math:`R^2` score of mean predictions defined as
+
+        .. math::
+            R^2 = 1 - \frac{\sum_n (\mu_n - y_n)^2}{\sum_n (\mu_n - \hat{y})^2}
+
+        where :math:`\mu_n, y_n` are the predicted mean and true values,
+        respectively, of the :math:`n`th sample. :math:`\hat{y}` is the average
+        of the true values.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        y: 1-dimensional array
+            Target array.
+
+        Returns
+        -------
+        R2: float
+            The R2 score.
+        """
         return r2_score(self.predict(X), y)
+
+    def score_reduced_chi2(self, X, y):
+        r"""
+        Calculate the reduced :math:`\chi^2` score defined as
+
+        .. math::
+            \chi^2 = \frac{1}{N - 2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
+
+        where :math:`\mu_n, \sigma_n, y_n` are the :math:`n`th predicted mean
+        value, predicted uncertainty and true value, respectively. Lastly,
+        :math:`N` is the number of samples.
+
+        Values of :math:`\chi^2 \gg 1` indicates that the error variance is
+        underestimated and :math:`\chi^2 < 1` indicates the error variance is
+        overestimated.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        y: 1-dimensional array
+            Target array.
+
+        Returns
+        -------
+        chi2 : float
+            The reduced :math:`\chi^2` value.
+        """
+        stats = self.predict_stats(X)
+        if y.ndim > 1 and y.shape[1] > 1:
+            raise TypeError("`y` must be a 1D array.")
+        else:
+            y = y.reshape(-1,)
+
+        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
+
+    def predict_gradient(self, X):
+        """
+        Predict the gradient of the predictions with respect to the input
+        features.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+
+        Returns
+        -------
+        grad: 3-dimensional array
+            Array of gradients of shape (2, `Nsamples`, `Nfeatures`). The first
+            axis correspond to the gradient of the mean and standard deviation,
+            respectively.
+        """
+        X = tf.convert_to_tensor(X)
+        x_input = {"linear_input": X, "deep_input": X}
+        # We will need separate tapes for mu and std
+        with tf.GradientTape() as t_mu:
+            t_mu.watch(x_input)
+            mu_pred = self.model(x_input).mean()
+
+        with tf.GradientTape() as t_std:
+            t_std.watch(x_input)
+            std_pred = self.model(x_input).stddev()
+
+        # The linear and deep input gradients are the same so might as well
+        # take this.
+        mu_grad = t_mu.gradient(mu_pred, x_input)["linear_input"]
+        std_grad = t_std.gradient(std_pred, x_input)["linear_input"]
+
+        return numpy.stack([numpy.asarray(mu_grad), numpy.asarray(std_grad)])
 
     @classmethod
     def from_checkpoint(cls, checkpoint_dir, optimizer):
+        """
+        Initialise from a checkpoint.
+
+        Arguments
+        ---------
+        checkpoint_dir: str
+            Path to the directory with the checkpoint files `params.p` and
+            `cp.ckpt`.
+        optimizer: keras optimizer
+            Optimizer to train the network.
+
+        Returns
+        -------
+        network: :py:class:`GaussianLossNN`
+            The initialised model with loaded weights.
+        """
         params = joblib.load(os.path.join(checkpoint_dir, "params.p"))
         network = cls(**params, checkpoint_dir=checkpoint_dir)
         network.adv_model.compile(optimizer=optimizer,
-                                  loss=network.hamiltonian_loss)
+                                  loss=network._hamiltonian_loss)
         checkpoint_path = os.path.join(checkpoint_dir, "cp.ckpt")
         network.adv_model.load_weights(checkpoint_path)
         return network
@@ -205,16 +378,16 @@ class EnsembleGaussianLossNN:
 
         Arguments
         ---------
-        X : array
+        X : n-dimensional array
             Feature array of shape (`Nsamples`, `Nfeatures`).
-        y : array, optional
+        y : 1-array, optional
             Target array corresponding to `X` of shape (`Nsamples`, ).
             Optional, if supplied used to reject models with outlier values
             of R^2 that did not converge.
 
         Returns
         -------
-        out : dict with keys:
+        out : dict with keys
             means : array
                 Mean predictions of each sample from each model, shape
                 is (`Nmodels`, `Nsamples`).
