@@ -47,7 +47,7 @@ def parse_data(data, features, target, log_labels, test_feature=None):
         Test feature array of shape (`Nsamples`, ). Returned only if
         `test_feature` is not `None`.
     """
-    if test_feature is not None & test_feature in features:
+    if test_feature is not None and test_feature in features:
         raise ValueError("`test_feature` {} already in `features`."
                          .format(test_feature))
 
