@@ -209,47 +209,30 @@ class GaussianLossNN:
 
     def predict(self, X, full=False):
         """
-        Predict the mean or the distribution if `full`.
+        Predict the mean and standard deviations for samples `X` (if `full`).
 
         Arguments
         ---------
         X: 2-dimensional array
             Feature array.
         full: bool, optional
-            Whether to return the probability distribution instead. By default
-            `False` and returns only the mean.
+            Whether to also return the standard deviation.
 
         Returns
         -------
-        out: 1-dimensional array or tensor of distributions
-            Predictions. If `full` returns distributions, otherwise returns the
-            mean prediction.
+        out: n-dimensional array
+            Predictions. If `full=False` returns a 1-dimensional array of
+            means, otherwise a 2-dimensional array of shape (`Nsamples`, 2)
+            where the 2nd column represent the mean and std, respectively.
         """
         yhat = self.model({"linear_input": X, "deep_input": X})
-        if full:
-            return yhat
-        return numpy.asarray(yhat.mean()).reshape(-1,)
-
-    def predict_stats(self, X):
-        """
-        Predict the mean and standard deviations for samples `X`.
-
-        Arguments
-        ---------
-        X: 2-dimensional array
-            Feature array.
-
-        Returns
-        -------
-        stats: 2-dimensional array
-            Array of shape (`Nsamples`, 2). The first and second columns are
-            the mean and standard deviation, respectively.
-        """
-        yhat = self.predict(X, full=True)
-
         mu = numpy.asarray(yhat.mean()).reshape(-1,)
-        std = numpy.asarray(yhat.stddev()).reshape(-1,)
-        return numpy.vstack([mu, std]).T
+
+        if full:
+            std = numpy.asarray(yhat.stddev()).reshape(-1,)
+            return numpy.vstack([mu, std]).T
+
+        return mu
 
     def score_R2mean(self, X, y):
         r"""
@@ -303,7 +286,7 @@ class GaussianLossNN:
         chi2 : float
             The reduced :math:`\chi^2` value.
         """
-        stats = self.predict_stats(X)
+        stats = self.predict(X, full=True)
         if y.ndim > 1 and y.shape[1] > 1:
             raise TypeError("`y` must be a 1D array.")
         else:
