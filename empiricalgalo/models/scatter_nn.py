@@ -28,6 +28,15 @@ from sklearn.metrics import r2_score
 import joblib
 
 
+#
+# =============================================================================
+#
+#                           Gaussian loss NN
+#
+# =============================================================================
+#
+
+
 class GaussianLossNN:
     """
     An adversarial neural network 1-dimensional regressor with a Gaussian
@@ -419,20 +428,78 @@ class GaussianLossNN:
         return network
 
 
-class EnsembleGaussianLossNN:
+#
+# =============================================================================
+#
+#                       Gaussian loss NN utilities
+#
+# =============================================================================
+#
+
+
+def make_checkpoint_dirs(base_path, Nensemble):
+    """
+    Create directories `ensemble_n` for checkpointing the models within the
+    ensemble.
+
+    Arguments
+    ---------
+    base_path: str
+        Base checkpoint directory within which to create the subdirectories.
+    Nensemble: int
+        Size of the ensemble.
+
+    Returns
+    -------
+    cdirs: list of str
+        List of ensemble checkpointing subdirectories.
+    """
+    cdirs = [None] * Nensemble
+    for i in range(Nensemble):
+        cdir = os.path.join(base_path, "ensemble_{}".format(i))
+
+        if not os.path.isdir(cdir):
+            os.mkdir(cdir)
+        cdirs[i] = cdir
+    return cdirs
+
+
+
+class SummaryEnsembleGaussianLossNN:
     """
     Make clear that this class is not for training (since we do that with MPI)
     """
 
-    def __init__(self, checkpoint_dirs, optimizer=None):
+    def __init__(self, checkpoint_dirs, optimizer="adamax"):
         if not isinstance(checkpoint_dirs, list):
             raise TypeError("`checkpoint_dirs` must be a list.")
 
-        if optimizer is None:
-            optimizer = "hmmm"
-
         self.models = [GaussianLossNN.from_checkpoint(path, optimizer)
                        for path in checkpoint_dirs]
+
+
+    def reject_bad_models(self):
+        scores = numpy.asarray([r2_score(mean, y) for mean in means])
+
+        selected_models = numpy.ones(scores.size, dtype=bool)
+        prev_median = None
+        while True:
+            median = numpy.median(scores[selected_models])
+            lower = median - dscore
+
+            selected_models[scores < lower] = False
+            # Continue to the next iteration if first iteration
+            if prev_median is None:
+                continue
+            # Check whether hit the stopping condition
+            if numpy.abs(median / prev_median - 1) < median_tol:
+                break
+            else:
+                prev_median = median
+        # Select the means and stds from models that survived
+        means = [mean for i, mean in enumerate(means) if selected_models[i]]
+        stds = [std for i, std in enumerate(stds) if selected_models[i]]
+        scores = scores[selected_models]
 
     def predict_stats(self, X, y=None, dscore=0.1, median_tol=0.01):
         """
@@ -467,29 +534,7 @@ class EnsembleGaussianLossNN:
             stds.append(pars["std"])
 
         if y is not None:
-            scores = numpy.asarray([r2_score(mean, y) for mean in means])
-
-            selected_models = numpy.ones(scores.size, dtype=bool)
-            prev_median = None
-            while True:
-                median = numpy.median(scores[selected_models])
-                lower = median - dscore
-
-                selected_models[scores < lower] = False
-                # Continue to the next iteration if first iteration
-                if prev_median is None:
-                    continue
-                # Check whether hit the stopping condition
-                if numpy.abs(median / prev_median - 1) < median_tol:
-                    break
-                else:
-                    prev_median = median
-            # Select the means and stds from models that survived
-            means = [mean for i, mean in enumerate(means) if selected_models[i]]
-            stds = [std for i, std in enumerate(stds) if selected_models[i]]
-            scores = scores[selected_models]
-        else:
-            scores = numpy.nan
+            pass
 
 
         means = numpy.vstack(means)
