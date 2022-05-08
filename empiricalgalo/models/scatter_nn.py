@@ -13,6 +13,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from re import I
 import numpy
 from copy import deepcopy
 from warnings import warn
@@ -453,16 +454,117 @@ class SummaryEnsembleGaussianLossNN:
     Lala
     """
 
-    def __init__(self, base_checkpoint_dir, optimizer, verbose=True):
+    def __init__(self, base_checkpoint_dir, optimizer):
         cdirs = glob(os.path.join(base_checkpoint_dir, "ensemble_*"))
 
-        if verbose:
-            print("Found {} models in `{}`."
-                  .format(len(cdirs), base_checkpoint_dir))
+        print("Found {} models in `{}`."
+              .format(len(cdirs), base_checkpoint_dir))
         self.models = [GaussianLossNN.from_checkpoint(cdir, optimizer)
                        for cdir in cdirs]
 
-    def score_R2mean(self, X, y):
+    @property
+    def Nensemble(self):
+        """The ensemble size."""
+        return len(self.models)
+
+    def predict(self, X, full=False):
+        """
+        Predict the mean and standard deviations for samples `X` (if `full`).
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        full: bool, optional
+            Whether to also return the standard deviation.
+
+        Returns
+        -------
+        out: n-dimensional array
+            Predictions. If `full=False` returns a 1-dimensional array of
+            means, otherwise a 2-dimensional array of shape (`Nsamples`, 2)
+            where the 2nd column represent the mean and std, respectively.
+        """
+        N = X.shape[0]
+        if full:
+            shape = (self.Nensemble, N, 2)
+        else:
+            shape = (self.Nensemble, N)
+
+        pred = numpy.full(shape, numpy.nan)
+
+        for i, model in enumerate(self.models):
+            pred[i, ...] = model.predict(X, full)
+
+        return pred
+
+    def predict_summary(self, X, full=False, bootstrap=False):
+        """
+        Predict the ensemble summary statistics.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        full: bool, optional
+            Whether to also return the standard deviation, by default `False`.
+        bootstrap: bool, optional
+            Whether to also return the bootstrapped mean and standard
+            deviation across the ensemble. By default `False`.
+
+        Returns
+        -------
+        out : n-dimensional array
+            Array of summary statistics.
+
+            If `full=False` and `bootstrap=False` returns ensemble mean of
+            means of shape (`Nsamples`, ).
+
+            If `full=False` and `bootstrap=True` returns ensemble mean of of
+            means and its bootstrap of shape (`Nsamples`, 2).
+
+            If `full=True` and `bootstrap=False` returns ensemble mean of of
+            means and ensemble averaged standard deviation of shape
+            (`Nsamples`, 2).
+
+            If `full=True` and `bootstrap=True` returns ensemble mean of of
+            means, the ensemble averaged standard deviation and their
+            corresponding bootstraps in the last axis. The shape is
+            (`Nsamples`, 2, 2).
+        """
+        # If not returning the std
+        if not full:
+            pred = self.predict(X, full)
+            # Average the mean over the models
+            mus = numpy.mean(pred, axis=0)
+            # Bootstrap the means from models
+            if bootstrap:
+                return numpy.stack([mus, numpy.std(pred, axis=0)]).T
+            else:
+                return mus
+
+        # Otherwise we have to deal with the std as well
+        pred = self.predict(X, full)
+
+        mus = numpy.mean(pred[..., 0], axis=0)
+        stds = numpy.mean(
+            pred[..., 1]**2 + (pred[..., 0] - mus)**2, axis=0)**0.5
+
+        # If no bootstrapping wrap in array and return
+        if not bootstrap:
+            return numpy.stack([mus, stds]).T
+
+        mus_bootstrap = numpy.std(pred[..., 0], axis=0)
+        stds_bootsrap = numpy.mean((pred[..., 1] - stds)**2)
+
+        out = numpy.full((mus.size, 2, 2), numpy.nan)
+        out[:, 0, 0] = mus
+        out[:, 0, 1] = mus_bootstrap
+        out[:, 1, 0] = stds
+        out[:, 1, 1] = stds_bootsrap
+        return out
+
+    def score_R2mean(self, X, y, full=True):
         r"""
         Calculate for each model the :math:`R^2` score of mean predictions
         defined as
@@ -480,15 +582,20 @@ class SummaryEnsembleGaussianLossNN:
             Feature array.
         y: 1-dimensional array
             Target array.
+        full: bool, optional
+            Whether to calculate the score from the ensemble summary mean.
 
         Returns
         -------
-        R2: list of floats
-            The R2 scores.
+        R2: list of floats or a float
+            The R2 score(s).
         """
-        return [model.score_R2mean(X, y) for model in self.models]
+        if full:
+            return [model.score_R2mean(X, y) for model in self.models]
 
-    def score_reduced_chi2(self, X, y):
+        return r2_score(self.predict_summary(X), y)
+
+    def score_reduced_chi2(self, X, y, full=True):
         r"""
         Calculate for each model the reduced :math:`\chi^2` score defined as
 
@@ -509,13 +616,24 @@ class SummaryEnsembleGaussianLossNN:
             Feature array.
         y: 1-dimensional array
             Target array.
+        full: bool, optional
+            Whether to calculate the score from the ensemble summary.
 
         Returns
         -------
         chi2 : float
             The reduced :math:`\chi^2` value.
         """
-        return [model.score_reduced_chi2(X, y) for model in self.models]
+        if full:
+            return [model.score_reduced_chi2(X, y) for model in self.models]
+
+        stats = self.predict_summary(X, full=True)
+        if y.ndim > 1 and y.shape[1] > 1:
+            raise TypeError("`y` must be a 1D array.")
+        else:
+            y = y.reshape(-1,)
+
+        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
 
 #    def reject_bad_models(self):
 #        scores = numpy.asarray([r2_score(mean, y) for mean in means])
@@ -539,98 +657,3 @@ class SummaryEnsembleGaussianLossNN:
 #        means = [mean for i, mean in enumerate(means) if selected_models[i]]
 #        stds = [std for i, std in enumerate(stds) if selected_models[i]]
 #        scores = scores[selected_models]
-
-#    def predict(self, X, full=False):
-#          """
-#          Predict the mean or the distribution if `full`.
-#
-#          Arguments
-#          ---------
-#          X: 2-dimensional array
-#              Feature array.
-#          full: bool, optional
-#              Whether to return the probability distribution instead. By default
-#              `False` and returns only the mean.
-#
-#          Returns
-#          -------
-#          out: 1-dimensional array or tensor of distributions
-#              Predictions. If `full` returns distributions, otherwise returns the
-#              mean prediction.
-#          """
-#          N = X.shape[n]
-#          yhat = self.model({"linear_input": X, "deep_input": X})
-#          if full:
-#              return yhat
-#          return numpy.asarray(yhat.mean()).reshape(-1,)
-#
-#    def predict_stats(self, X, y=None, dscore=0.1, median_tol=0.01):
-#        """
-#        Predict the mean and standard deviation for features `X`.
-#
-#        Arguments
-#        ---------
-#        X : n-dimensional array
-#            Feature array of shape (`Nsamples`, `Nfeatures`).
-#        y : 1-array, optional
-#            Target array corresponding to `X` of shape (`Nsamples`, ).
-#            Optional, if supplied used to reject models with outlier values
-#            of R^2 that did not converge.
-#
-#        Returns
-#        -------
-#        out : dict with keys
-#            means : array
-#                Mean predictions of each sample from each model, shape
-#                is (`Nmodels`, `Nsamples`).
-#            stds : array
-#                Standard deviation of each sample from each model, shape
-#                is (`Nmodels`, `Nsamples`).
-#        """
-#        means = []
-#        stds = []
-#
-#        for model in self.models:
-#            pars = model.predict_stats(X)
-#
-#            means.append(pars["mean"])
-#            stds.append(pars["std"])
-#
-#        if y is not None:
-#            pass
-#
-#
-#        means = numpy.vstack(means)
-#        stds = numpy.vstack(means)
-#
-#        return {"means": means,
-#                "stds": stds,
-#                "scores": scores}
-#
-#    def stacked_ensemble_stats(self, stats=None, X=None, y=None):
-#        are_both_none = stats is None and X is None
-#        are_both_given = stats is not None and X is not None
-#        if are_both_none or are_both_given:
-#            raise ValueError("Must supply either `stats` of `X`")
-#
-#        if stats is None:
-#            stats = self.predict_stats(X)
-#        # The ensemble mean is the mean of the models
-#        mean = numpy.mean(stats["means"], axis=0)
-#        # The ensemble std is the sqrt of the averaged variance with correction
-#        std = numpy.mean(stats["stds"]**2
-#                         + (stats["means"] - mean)**2, axis=0)**0.5
-#
-#        mean_deviation = numpy.std(stats["means"], axis=0)
-#        std_deviation = numpy.std(stats["stds"], axis=0)
-#
-#        if y is not None:
-#            in1sigma = numpy.sum(numpy.abs(mean - y) < std) / mean.size
-#        else:
-#            in1sigma = numpy.nan
-#
-#        return {"mean": mean,
-#                "std": std,
-#                "mean_deviation": mean_deviation,
-#                "std_deviation": std_deviation,
-#                "in1sigma": in1sigma}
