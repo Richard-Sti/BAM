@@ -35,25 +35,28 @@ class GaussianLossNN:
 
     Arguments
     ---------
-    Ninputs : int
+    Ninputs: int
         Number of input features.
-    deep_layers : list of int, optional
+    checkpoint_dir: str
+        Path to the directory with the checkpoint files `params.p` and
+        `cp.ckpt`.
+    deep_layers: list of int, optional
         Number of neurons within each deep layer.
         By default `[16, 16, 16, 16, 8]`.
-    activation : str, optional
+    activation: str, optional
         Activation function. By default `selu`, the scaled exponential linear
         unit.
-    initializer : str, optional
+    initializer: str, optional
         Network weights initialiser, by default `LecunNormal`. Alternatively
         can be picked from Tensorflow's selection of initialisers.
-    adv_multiplier : float, optinal
+    adv_multiplier: float, optinal
         Multiplier to adversarial regularization loss. By default 0.2.
-    adv_step : float, optional
+    adv_step: float, optional
         Step size to find the adversarial sample. By default to 0.001.
-    pgd_iters : int, optional
+    pgd_iters: int, optional
         Nnumber of attack iterations for Projected Gradient Descent (PGD)
         attack. Defaults to 3.
-    seed : int, optional
+    seed: int, optional
         Random seed for setting the initial weights.
     """
     def __init__(self, Ninputs, checkpoint_dir, deep_layers=[16, 16, 16, 16, 8],
@@ -366,7 +369,35 @@ class GaussianLossNN:
         """
         Initialise the model and directly fit it.
 
-        TODO: add docs
+        Arguments
+        ---------
+        Xtrain: 2-dimensional array.
+            Feature array.
+        ytrain: 1-dimensional array.
+            Target  batch_size: int
+        batch_size: int
+            The batch size.
+        checkpoint_dir: str
+            Path to the directory with the checkpoint files `params.p` and
+            `cp.ckpt`.
+        model_kwargs: dict
+            Kwargs passed into :py:class:`GaussianLossNN`, except `Ninputs` and
+            `checkpoint_dir`.
+        optimizer: keras optimizer, optional
+            Optimizer to train the network. By default `adamax` with default TF
+            parameters.
+        patience: int, optional
+            The patience, if the loss minimum does not change over this many
+            epochs terminate the training. By default 50.
+        epochs: int, optional
+            Number of epochs to train the network, by defualt 500.
+        validation_size: float, optional
+            Fractional validation size. array.
+
+        Returns
+        -------
+        network: :py:class:`GaussianLossNN`
+            The trained model.
         """
         # Deepcopy the kwargs
         model_kwargs = deepcopy(model_kwargs)
