@@ -28,6 +28,10 @@ except IndexError:
     raise RuntimeError("version string in empiricalgalo._verion.py not "
                        "formatted correctly; it should be:\n"
                        "__version__ = VERSION")
+
+with open("requirements.txt", "r") as fh:
+    requirements = fh.read()
+requirements.split("\n")
 # remove ' and " from version string
 version = vstr.replace("'", "").replace('"', "")
 
@@ -41,9 +45,7 @@ setup(
     author_email='richard.stiskalek@protonmail.com',
     license='GPL-3.0',
     packages=find_packages(),
-    install_requires=["numpy>=1.17.0",
-                      "six>=1.10.0",
-                      "AbundanceMatching>=0.3.0"],
+    install_requires=requirements,
     python_requires=">=3.6",
     classifiers=[
         "Programming Language :: Python :: 3",
