@@ -26,6 +26,7 @@ import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 import neural_structured_learning as nsl
 from sklearn.metrics import r2_score
+from sklearn.neighbors import LocalOutlierFactor
 
 import joblib
 
@@ -712,25 +713,18 @@ class SummaryEnsembleGaussianLossNN:
 
         return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
 
-#    def reject_bad_models(self):
-#        scores = numpy.asarray([r2_score(mean, y) for mean in means])
-#
-#        selected_models = numpy.ones(scores.size, dtype=bool)
-#        prev_median = None
-#        while True:
-#            median = numpy.median(scores[selected_models])
-#            lower = median - dscore
-#
-#            selected_models[scores < lower] = False
-#            # Continue to the next iteration if first iteration
-#            if prev_median is None:
-#                continue
-#            # Check whether hit the stopping condition
-#            if numpy.abs(median / prev_median - 1) < median_tol:
-#                break
-#            else:
-#                prev_median = median
-#        # Select the means and stds from models that survived
-#        means = [mean for i, mean in enumerate(means) if selected_models[i]]
-#        stds = [std for i, std in enumerate(stds) if selected_models[i]]
-#        scores = scores[selected_models]
+    def convergence_R2s(self, X, y, minR2):
+        """
+        Return a mask of which models resulted in :math:`R^2` higher than
+        `minR2`.
+
+        Arguments
+        ---------
+        X: 2-dimensional array
+            Feature array.
+        y: 1-dimensional array
+            Target array.
+        minR2: float
+            Minimum :math:`R^2` value.
+        """
+        return numpy.asarray(self.score_R2mean(X, y)) > minR2
