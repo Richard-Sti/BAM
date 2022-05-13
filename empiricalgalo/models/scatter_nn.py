@@ -44,6 +44,9 @@ class GaussianLossNN:
     An adversarial neural network 1-dimensional regressor with a Gaussian
     loss function that predicts both a mean and a standard deviation.
 
+    Connects the weights to outputs linearly and through a deep NN whose
+    outputs are summed, the wide & deep architecture.
+
     Recommended to use the default scaled exponential linear unit activation
     (SELU) and the Lecun Normal weights initialiser.
 
