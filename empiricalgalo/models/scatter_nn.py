@@ -42,7 +42,7 @@ import joblib
 class GaussianLossNN:
     """
     An adversarial neural network 1-dimensional regressor with a Gaussian
-    loss function.
+    loss function that predicts both a mean and a standard deviation.
 
     Arguments
     ---------
@@ -481,9 +481,12 @@ def get_random_seeds(N, seed):
 
 class SummaryEnsembleGaussianLossNN:
     """
-    Lala
-    """
+    Summary class for an ensemble of :py:class:`GaussianLossNN` models.
 
+    Contains functionalities for checkings their convergence, ensemble
+    predictions, ensemble scores and ensemble gradients of the predictions
+    with respect to the features.
+    """
     def __init__(self, base_checkpoint_dir, optimizer):
         self._converge_mask = None
         cdirs = glob(os.path.join(base_checkpoint_dir, "ensemble_*"))
