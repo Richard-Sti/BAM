@@ -44,6 +44,9 @@ class GaussianLossNN:
     An adversarial neural network 1-dimensional regressor with a Gaussian
     loss function that predicts both a mean and a standard deviation.
 
+    Recommended to use the default scaled exponential linear unit activation
+    (SELU) and the Lecun Normal weights initialiser.
+
     Arguments
     ---------
     Ninputs: int
@@ -94,6 +97,8 @@ class GaussianLossNN:
         # Weights initialiser
         if initializer == "LecunNormal":
             inits = tf.keras.initializers.LecunNormal(seed)
+        elif not isinstance(initializer, str):
+            inits = initializer(seed=seed)
         else:
             inits = initializer
 
