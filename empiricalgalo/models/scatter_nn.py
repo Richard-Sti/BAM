@@ -26,7 +26,6 @@ import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 import neural_structured_learning as nsl
 from sklearn.metrics import r2_score
-from sklearn.neighbors import LocalOutlierFactor
 
 import joblib
 
@@ -486,17 +485,52 @@ class SummaryEnsembleGaussianLossNN:
     """
 
     def __init__(self, base_checkpoint_dir, optimizer):
+        self._converge_mask = None
         cdirs = glob(os.path.join(base_checkpoint_dir, "ensemble_*"))
 
         print("Found {} models in `{}`."
               .format(len(cdirs), base_checkpoint_dir))
-        self.models = [GaussianLossNN.from_checkpoint(cdir, optimizer)
+        self._models = [GaussianLossNN.from_checkpoint(cdir, optimizer)
                        for cdir in cdirs]
 
     @property
     def Nensemble(self):
-        """The ensemble size."""
-        return len(self.models)
+        """
+        The ensemble size without models that considered not converged, if any.
+
+        Returns
+        -------
+        Nensemble: int
+            The ensemble size.
+        """
+        return numpy.sum(self.convergence_mask)
+
+    @property
+    def convergence_mask(self):
+        """
+        The boolean mask of converged models.
+
+        Returns
+        -------
+        convergence_mask: 1-dimensional array of bools
+            Convergence mask.
+        """
+        if self._converge_mask is None:
+            return numpy.ones(len(self._models), dtype=bool)
+        return self._converge_mask
+
+    @property
+    def models(self):
+        """
+        Return the list of models (that are considered converged.)
+
+        Returns
+        -------
+        models: list
+            List of models.
+        """
+        return [model for i, model in enumerate(self._models)
+                if self.convergence_mask[i]]
 
     def predict(self, X, full=False):
         """
@@ -713,10 +747,10 @@ class SummaryEnsembleGaussianLossNN:
 
         return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
 
-    def convergence_R2s(self, X, y, minR2):
+    def enforce_R2s_convergence(self, X, y, minR2):
         """
-        Return a mask of which models resulted in :math:`R^2` higher than
-        `minR2`.
+        Calculate a mask of which models resulted in :math:`R^2` higher than
+        `minR2` and store it internally.
 
         Arguments
         ---------
@@ -727,4 +761,7 @@ class SummaryEnsembleGaussianLossNN:
         minR2: float
             Minimum :math:`R^2` value.
         """
-        return numpy.asarray(self.score_R2mean(X, y)) > minR2
+        mask = numpy.asarray(self.score_R2mean(X, y)) > minR2
+        warn("Masking {} models whose R2 score is below threshold {}."
+             .format(numpy.sum(~mask), minR2))
+        self._convergence_mask = mask
