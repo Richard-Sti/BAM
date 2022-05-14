@@ -218,7 +218,8 @@ class GaussianLossNN:
         # Save the history and the params for reproducibility
         joblib.dump(history.history,
                     os.path.join(self.checkpoint_dir, 'history.p'))
-        joblib.dump(self._params, os.path.join(self.checkpoint_dir, 'params.p'))
+        joblib.dump(self._params,
+                    os.path.join(self.checkpoint_dir, 'params.p'))
 
     def predict(self, X, full=False):
         """
@@ -277,7 +278,7 @@ class GaussianLossNN:
         Calculate the reduced :math:`\chi^2` score defined as
 
         .. math::
-            \chi^2 = \frac{1}{N - 2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
+            \chi^2 = \frac{1}{N-2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
 
         where :math:`\mu_n, \sigma_n, y_n` are the :math:`n`th predicted mean
         value, predicted uncertainty and true value, respectively. Lastly,
@@ -305,7 +306,7 @@ class GaussianLossNN:
         else:
             y = y.reshape(-1,)
 
-        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
+        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size - 2)
 
     def predict_gradient(self, X):
         """
@@ -412,8 +413,8 @@ class GaussianLossNN:
 
         # Do some input checking
         if model_kwargs.pop("Ninputs", None) is not None:
-            warn("`Ninputs` inferred implicitly from `Xtrain`. Ignoring the value "
-                 "in `model_kwargs`.")
+            warn("`Ninputs` inferred implicitly from `Xtrain`. "
+                 "Ignoring the value in `model_kwargs`.")
 
         for par in ["checkpoint_dir", "seed"]:
             if model_kwargs.pop(par, None) is not None:
@@ -425,7 +426,7 @@ class GaussianLossNN:
         network = cls(Ninputs, checkpoint_dir, **model_kwargs)
         # Fit it
         network.fit(Xtrain, ytrain, batch_size, optimizer, patience, epochs,
-                  validation_size)
+                    validation_size)
         return network
 
 
@@ -506,7 +507,7 @@ class SummaryEnsembleGaussianLossNN:
         print("Found {} models in `{}`."
               .format(len(cdirs), base_checkpoint_dir))
         self._models = [GaussianLossNN.from_checkpoint(cdir, optimizer)
-                       for cdir in cdirs]
+                        for cdir in cdirs]
 
     @property
     def Nensemble(self):
@@ -673,8 +674,8 @@ class SummaryEnsembleGaussianLossNN:
             Array of gradients.
 
                 If `bootstrap=False` of shape (2, `Nsamples`,
-                `Nfeatures`), where the first axis represents the gradient of the
-                mean and standard deviation.
+                `Nfeatures`), where the first axis represents the gradient of
+                the mean and standard deviation.
 
                 Otherwise the output shape is (2, 2, `Nsamples`, `Nfeatures`),
                 where the second axis of length 2 represents the bootstrap
@@ -727,7 +728,7 @@ class SummaryEnsembleGaussianLossNN:
         Calculate for each model the reduced :math:`\chi^2` score defined as
 
         .. math::
-            \chi^2 = \frac{1}{N - 2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
+            \chi^2 = \frac{1}{N-2} \sum_{n} \frac{(\mu_n - y_n)^2}{\sigma_n^2}
 
         where :math:`\mu_n, \sigma_n, y_n` are the :math:`n`th predicted mean
         value, predicted uncertainty and true value, respectively. Lastly,
@@ -760,7 +761,7 @@ class SummaryEnsembleGaussianLossNN:
         else:
             y = y.reshape(-1,)
 
-        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size- 2)
+        return numpy.sum((stats[:, 0] - y)**2 / stats[:, 1]**2) / (y.size - 2)
 
     def enforce_R2s_convergence(self, X, y, minR2):
         """
