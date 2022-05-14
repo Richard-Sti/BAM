@@ -75,9 +75,10 @@ class GaussianLossNN:
     seed: int, optional
         Random seed for setting the initial weights.
     """
-    def __init__(self, Ninputs, checkpoint_dir, deep_layers=[16, 16, 16, 16, 8],
-                 activation="selu", initializer="LecunNormal",
-                 adv_multiplier=0.2, adv_step=0.001, pgd_iters=3, seed=None):
+    def __init__(self, Ninputs, checkpoint_dir,
+                 deep_layers=[16, 16, 16, 16, 8], activation="selu",
+                 initializer="LecunNormal", adv_multiplier=0.2, adv_step=0.001,
+                 pgd_iters=3, seed=None):
         # Initialise the model
         self.model, self.adv_model = self._make_model(
             Ninputs, deep_layers, activation, initializer, adv_multiplier,
@@ -94,7 +95,7 @@ class GaussianLossNN:
                         "pgd_iters": pgd_iters, "seed": seed}
 
     def _make_model(self, Ninputs, deep_layers, activation, initializer,
-                   adv_multiplier, adv_step, pgd_iters, seed):
+                    adv_multiplier, adv_step, pgd_iters, seed):
         """Make the (adversarial) model."""
         # Weights initialiser
         if initializer == "LecunNormal":
@@ -116,7 +117,8 @@ class GaussianLossNN:
         deep = Normalization()(deep_input)
         # Append the deep layers
         for i, layer in enumerate(deep_layers):
-            deep = Dense(layer, activation=activation, kernel_initializer=inits,
+            deep = Dense(layer, activation=activation,
+                         kernel_initializer=inits,
                          name="deep_{}".format(i + 1))(deep)
         # Need two output nodes: mean and variance
         deep = Dense(2, name="deep_final")(deep)
@@ -164,9 +166,11 @@ class GaussianLossNN:
         """
         checkpoint_path = os.path.join(self.checkpoint_dir, "cp.ckpt")
         return [tf.keras.callbacks.EarlyStopping(
-                    patience=patience,restore_best_weights=True),
+                    patience=patience, restore_best_weights=True),
                 tf.keras.callbacks.ModelCheckpoint(
-                    filepath=checkpoint_path, save_weights_only=True, verbose=0)]
+                    filepath=checkpoint_path, save_weights_only=True,
+                    verbose=0)
+                ]
 
     def fit(self, Xtrain, ytrain, batch_size, optimizer="adamax", patience=50,
             epochs=500, validation_size=0.2):
@@ -198,7 +202,8 @@ class GaussianLossNN:
         None
         """
         # Compile the model
-        self.adv_model.compile(optimizer=optimizer, loss=self._hamiltonian_loss)
+        self.adv_model.compile(optimizer=optimizer,
+                               loss=self._hamiltonian_loss)
         # Data in a format to be given to the NN
         data = {"linear_input": Xtrain,
                 "deep_input": Xtrain,
