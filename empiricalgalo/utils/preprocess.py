@@ -188,7 +188,8 @@ def stratify_split(data, features, targets, stratify_axis, log_stratify,
     y_test : numpy.ndarray with named fields
         Test target.
     train_weights : numpy.ndarray
-        Sample weights for the train set.  If weights is `None` is not returned.
+        Sample weights for the train set.  If weights is `None` is not
+        returned.
     test_weights : numpy.ndarray
         Sample weights for the test set. If weights is `None` is not returned.
     """

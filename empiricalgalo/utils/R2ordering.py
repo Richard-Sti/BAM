@@ -144,7 +144,6 @@ def incremental_importance(data, features, target, model, log_labels=None,
             scores[i] = current_model.score(Xtest, ytest)
             models[i] = current_model
 
-
         k = numpy.argmax(scores)
         best_feature = features.pop(k)
 

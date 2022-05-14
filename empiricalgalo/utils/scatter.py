@@ -36,7 +36,7 @@ class BinningAssignment:
         self._dx = None
         self._mask = None
         self._Nbins = None
-        self.set_data(x,y)
+        self.set_data(x, y)
         self.dx = dx
 
     @property
@@ -157,7 +157,6 @@ class BivariateGaussianScatterPosterior:
         if bin_samples.ndim > 1:
             raise TypeError("`bin_samples` must be a 1-dimensional")
         self._bin_samples = bin_samples
-
 
     def prior_rvs(self, size=None):
         """Samples the uniform prior distributions."""
