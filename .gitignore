@@ -7,4 +7,3 @@ tutorials/smf.npy
 *.whl
 empiricalgalo.egg-info/*
 build/*
-checkpoints/
