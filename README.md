@@ -9,7 +9,7 @@ Assumes a constant lognormal scatter in the galaxy proxy conditioned on the halo
 If you use or find helpful any of the code implemented inthis repository please cite [1].
 
 ## Installation
-The best code is the one that can be directly and *easily* tinkered with. Therefore, a direct pip-installation is not supported. Instead, I suggest to simply clone the repository in your favourit folder:
+The best code is the one that can be *easily* tinkered with. Therefore, a direct pip-installation from  PyPI is not supported. Instead, I suggest to clone the repository into your favourite folder:
 
 ```bash
 cd /path/to/your/favouritefolder
