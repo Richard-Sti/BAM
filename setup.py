@@ -20,7 +20,7 @@ with open('README.md', "r") as fh:
     long_description = fh.read()
 
 # get version
-with open("empiricalgalo/_version.py", "r") as fh:
+with open("BAM/_version.py", "r") as fh:
     vstr = fh.read().strip()
 try:
     vstr = vstr.split('=')[1].strip()
@@ -36,11 +36,11 @@ requirements.split("\n")
 version = vstr.replace("'", "").replace('"', "")
 
 setup(
-    name='empiricalgalo',
+    name='BAM',
     version=version,
-    description='Empirical models of the galaxy-halo connection',
+    description='Baryonic Abundance Matching',
     long_description=long_description,
-    url='https://github.com/Richard-Sti/empiricalgalo',
+    url='https://github.com/Richard-Sti/BAM',
     author='Richard Stiskalek',
     author_email='richard.stiskalek@protonmail.com',
     license='GPL-3.0',
