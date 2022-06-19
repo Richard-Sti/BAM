@@ -5,6 +5,5 @@ tutorials/halos.npy
 *-checkpoint.ipynb
 tutorials/smf.npy
 *.whl
-empiricalgalo.egg-info/*
 build/*
 checkpoints/
