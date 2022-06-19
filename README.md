@@ -23,6 +23,12 @@ cd /path/to/your/favouritefolder/BAM
 pip install .
 ```
 
+If locally installed the code can then be imported as usual:
+```python
+import BAM
+```
+
+
 ## References
 [1] Richard Stiskalek; Harry Desmond; Thomas Holvey; and Michael G. Jones. "The dependence of subhalo abundance matching on galaxy photometry and selection criteria." Monthly Notices of the Royal Astronomical Society 506, no. 3 (2021): 3205-3223. [arXiv:2101.02765](https://arxiv.org/abs/2101.02765)
 
