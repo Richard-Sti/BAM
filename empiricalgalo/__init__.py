@@ -18,4 +18,3 @@ __author__ = "Richard Stiskalek"
 
 from .abundance_match import AbundanceMatch
 from .proxy import proxies
-
