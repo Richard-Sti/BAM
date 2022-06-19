@@ -9,8 +9,18 @@ Assumes a constant lofnormal scatter in the galaxy proxy conditioned on the halo
 If you use or find helpful any of the code implemented inthis repository please cite [1].
 
 ## Installation
+The best code is the one that can be directly and *easily* tinkered with. Therefore, a direct pip-installation is not supported. Instead, I suggest to simply clone the repository in your favourit folder:
+
 ```bash
-pip install empiricalgalo
+cd /path/to/your/favouritefolder
+git clone git@github.com:Richard-Sti/BAM.git
+```
+
+Furthermore, if needed the the code can be locally installed via pip:
+
+```bash
+cd /path/to/your/favouritefolder/BAM
+pip install .
 ```
 
 ## References
