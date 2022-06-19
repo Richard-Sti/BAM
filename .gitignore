@@ -7,3 +7,4 @@ tutorials/smf.npy
 *.whl
 build/*
 checkpoints/
+BAM.egg-info/*
