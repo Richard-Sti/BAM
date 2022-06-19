@@ -1,4 +1,4 @@
-# Copyright (C) 2022  Richard Stiskalek
+# Copyright (C) 2020  Richard Stiskalek
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
 # Free Software Foundation; either version 3 of the License, or (at your
@@ -13,6 +13,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from .scatter import (BinningAssignment, BivariateGaussianScatterPosterior)
-from .R2ordering import incremental_importance, parse_data
-from .preprocess import DataFrameSelector, stratify_split, apply_preprocess
+__version__ = "0.1.3"
+__author__ = "Richard Stiskalek"
+
+from .abundance_match import AbundanceMatch
+from .proxy import proxies
