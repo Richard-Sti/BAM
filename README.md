@@ -3,7 +3,7 @@
 
 BAM implements a subhalo abundance matching model based on Yao-Yuan Mao's [implementation](https://github.com/yymao/abundancematching) with Peter Behroozi's fiducial deconvolution via the Richardson-Lucy algorithm.
 
-Assumes a constant lofnormal scatter in the galaxy proxy conditioned on the halo proxy. See the following example notebook: [``./tutorial/tutorial_SHAM.ipynb``](https://github.com/Richard-Sti/empiricalgalo/blob/master/tutorials/tutorial_SHAM.ipynb).
+Assumes a constant lognormal scatter in the galaxy proxy conditioned on the halo proxy. See the following example notebook: [``./tutorial/tutorial_SHAM.ipynb``](https://github.com/Richard-Sti/BAM/blob/master/tutorials/tutorial_SHAM.ipynb).
 
 
 If you use or find helpful any of the code implemented inthis repository please cite [1].
