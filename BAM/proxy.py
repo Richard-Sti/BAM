@@ -27,12 +27,15 @@ class BaseProxy(object):
     Abstract class for handling the abundance matching proxies. All
     proxies must inherit from this.
 
-    Parameters
+    Properties
     ----------
     halo_params: (list of) str
         Names of halo parameters to calculate the proxy.
+    use_cache: bool
+        Whether to cache the halo properties.
     """
     _halo_params = None
+    _use_cache = None
     _cache = {}
 
     @property
@@ -53,6 +56,19 @@ class BaseProxy(object):
                 raise ValueError("Halo parameter '{}' is not a string"
                                  .format(p))
         self._halo_params = pars
+
+    @property
+    def use_cache(self):
+        """Whether to cache the halo properties."""
+        if self._use_cache is None:
+            raise ValueError("'use_cache' must be set.")
+        return self._use_cache
+
+    @use_cache.setter
+    def use_cache(self, value):
+        if not isinstance(value, bool):
+            raise ValueError("'use_cache' must be a boolean.")
+        self._use_cache = value
 
     def _check_halo_attributes(self, halos):
         """
@@ -76,11 +92,19 @@ class VirialMassProxy(BaseProxy):
 
     where :math:`M_0` and :math:`M_{\mathrm{peak}}` are the present and peak
     virial masses, respectively.
+
+    Parameters
+    ----------
+    use_cache : bool
+        If True, the proxy will use a cache to store the calculated values
+        of the halo parameters, useful if repeatedly passing the same halo
+        catalogue.
     """
     name = 'mvir_proxy'
 
-    def __init__(self):
+    def __init__(self, use_cache):
         self.halo_params = ['mvir', 'mpeak']
+        self.use_cache = use_cache
 
     def __call__(self, halos, theta):
         """
@@ -103,22 +127,33 @@ class VirialMassProxy(BaseProxy):
             raise ValueError("'alpha' must be specified.")
         self._check_halo_attributes(halos)
 
-        # Get the cached proxy parameters. If not found calculate
-        try:
-            logMvir = self._cache['logMvir']
-        except KeyError:
-            logMvir = numpy.log10(halos['mvir'])
-            self._cache.update({'logMvir': logMvir})
-        try:
-            logMratio = self._cache['logMratio']
-        except KeyError:
-            logMratio = numpy.log10(halos['mpeak'] / halos['mvir'])
-            self._cache.update({'logMratio': logMratio})
+        # Get the (cached) virial mass
+        if self.use_cache:
+            try:
+                logMvir = self._cache['logMvir']
+            except KeyError:
+                logMvir = numpy.log10(halos['mvir'])
+                self._cache.update({'logMvir': logMvir})
+        else:
+            try:
+                logMvir = halos['log_mvir']
+            except ValueError:
+                logMvir = numpy.log10(halos['mvir'])
 
-        # More efficient than a single line expression
-        proxy = numpy.copy(logMvir)
-        proxy += alpha * logMratio
-        return proxy
+        # Get the (cached) peak to present mass ratio
+        if self.use_cache:
+            try:
+                logMratio = self._cache['logMratio']
+            except KeyError:
+                logMratio = numpy.log10(halos['mpeak'] / halos['mvir'])
+                self._cache.update({'logMratio': logMratio})
+        else:
+            try:
+                logMratio = halos['log_mpeak'] - halos['log_mvir']
+            except ValueError:
+                logMratio = numpy.log10(halos['mpeak'] / halos['mvir'])
+
+        return logMvir + alpha * logMratio
 
 
 class PeakRedshiftProxy(BaseProxy):
@@ -126,12 +161,20 @@ class PeakRedshiftProxy(BaseProxy):
     A pre-selection proxy that eliminates all halos whose peak mass
     redshift is above ``zcutoff``. The remaining halos are ranked by the
     present virial mass.
+
+    Parameters
+    ----------
+    use_cache : bool
+        If True, the proxy will use a cache to store the calculated values
+        of the halo parameters, useful if repeatedly passing the same halo
+        catalogue.
     """
 
     name = 'zmpeak_proxy'
 
-    def __init__(self):
+    def __init__(self, use_cache):
         self.halo_params = ['mvir', 'mpeak_scale']
+        self.use_cache = use_cache
 
     def __call__(self, halos, theta):
         """
@@ -155,16 +198,26 @@ class PeakRedshiftProxy(BaseProxy):
         self._check_halo_attributes(halos)
 
         # Save values that do not change during runtime
-        try:
-            zmpeak = self._cache['zmpeak']
-        except KeyError:
+        if self.use_cache:
+            try:
+                zmpeak = self._cache['zmpeak']
+            except KeyError:
+                zmpeak = 1. / halos['mpeak_scale'] - 1
+                self._cache.update({'zmpeak': zmpeak})
+        else:
             zmpeak = 1. / halos['mpeak_scale'] - 1
-            self._cache.update({'zmpeak': zmpeak})
-        try:
-            logMvir = self._cache['logMvir']
-        except KeyError:
-            logMvir = numpy.log10(halos['mvir'])
-            self._cache.update({'logMvir': logMvir})
+
+        if self.use_cache:
+            try:
+                logMvir = self._cache['logMvir']
+            except KeyError:
+                logMvir = numpy.log10(halos['mvir'])
+                self._cache.update({'logMvir': logMvir})
+        else:
+            try:
+                logMvir = halos['log_mvir']
+            except ValueError:
+                logMvir = numpy.log10(halos['mvir'])
 
         mask = zmpeak < zcutoff
         proxy = logMvir[mask]
